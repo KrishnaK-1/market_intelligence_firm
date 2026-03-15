@@ -1,0 +1,204 @@
+═══════════════════════════════════════════════════════════════
+  MARKET INTELLIGENCE FIRM — PyCharm Setup Guide
+═══════════════════════════════════════════════════════════════
+
+PREREQUISITES
+─────────────
+  • Python 3.10 or 3.11 (recommended)
+  • PyCharm (Community or Professional)
+  • A free FRED API key from:
+    https://fred.stlouisfed.org/docs/api/api_key.html
+
+
+STEP 1 — UNZIP THE PROJECT
+───────────────────────────
+  Unzip market_intelligence_firm.zip to a location of your
+  choice. You'll get a folder called market_intelligence_firm/.
+
+
+STEP 2 — OPEN IN PYCHARM
+─────────────────────────
+  1. Open PyCharm
+  2. File → Open → select the market_intelligence_firm folder
+  3. Click "Open" (choose "Trust Project" if prompted)
+
+
+STEP 3 — CREATE A VIRTUAL ENVIRONMENT
+──────────────────────────────────────
+  PyCharm should prompt you to configure an interpreter.
+  If not:
+
+  1. File → Settings → Project → Python Interpreter
+  2. Click the gear icon → Add Interpreter → Add Local Interpreter
+  3. Select "Virtualenv Environment" → "New"
+  4. Base interpreter: choose Python 3.10 or 3.11
+  5. Click OK
+
+  Or via terminal (View → Tool Windows → Terminal):
+
+    python -m venv venv
+    
+  On Windows:   venv\Scripts\activate
+  On Mac/Linux: source venv/bin/activate
+
+
+STEP 4 — INSTALL DEPENDENCIES
+──────────────────────────────
+  In PyCharm's terminal (with venv activated):
+
+    pip install -r requirements.txt
+
+  This installs: pandas, numpy, scikit-learn, xgboost, hmmlearn,
+  imbalanced-learn, yfinance, fastapi, uvicorn, apscheduler, etc.
+
+  NOTE: If you hit issues with hmmlearn on Windows, try:
+    pip install hmmlearn --no-build-isolation
+
+
+STEP 5 — ADD YOUR FRED API KEY
+───────────────────────────────
+  1. Open the .env file in the project root
+  2. Replace YOUR_FRED_KEY_HERE with your actual key:
+     
+     FRED_API_KEY=abc123yourkey456
+
+  Get a free key at: https://fred.stlouisfed.org/docs/api/api_key.html
+  (Takes 30 seconds to register)
+
+
+STEP 6 — CONFIGURE PYCHARM RUN CONFIGURATION
+─────────────────────────────────────────────
+  Option A — Run the FastAPI Dashboard Server:
+
+    1. Run → Edit Configurations → click "+" → Python
+    2. Name:              Market Intelligence Server
+    3. Script path:       Click "..." → navigate to dashboard/server.py
+    4. Working directory:  (should auto-fill to project root)
+    5. Environment vars:   Click "..." → add:
+                           FRED_API_KEY=your_key_here
+                           (or leave blank if .env is set)
+    6. Click Apply → OK
+
+  Option B — Run via uvicorn (recommended for hot reload):
+
+    1. Run → Edit Configurations → click "+" → Python
+    2. Name:              MIF Uvicorn
+    3. Module name:       uvicorn   (NOT script path)
+    4. Parameters:        dashboard.server:app --host 0.0.0.0 --port 8000
+    5. Working directory:  (project root)
+    6. Click Apply → OK
+
+  Option C — CLI Mode (no server, just prints report):
+
+    1. Run → Edit Configurations → click "+" → Python
+    2. Name:              MIF CLI
+    3. Script path:       main.py
+    4. Working directory:  (project root)
+    5. Click Apply → OK
+
+
+STEP 7 — RUN IT
+────────────────
+  1. Select your run configuration from the dropdown (top-right)
+  2. Click the green ▶ Run button
+
+  FIRST RUN will take 2–5 minutes because it:
+    • Downloads 20+ macro series from FRED (back to 1960s+)
+    • Downloads Shiller CAPE data from Yale (1871+)
+    • Downloads ETF prices from Yahoo Finance
+    • Builds 22+ engineered features
+    • Trains the HMM + GMM + XGBoost ensemble
+    • Runs walk-forward backtesting
+    • Generates regime alerts
+
+  Subsequent runs (daily refresh) take ~15 seconds.
+
+
+STEP 8 — OPEN THE DASHBOARD
+────────────────────────────
+  Once the server starts, open your browser to:
+
+    http://localhost:8000
+
+  You'll see the full interactive dashboard with:
+    • Current regime classification + probabilities
+    • 1/3/6 month forward forecasts
+    • Probability-weighted asset allocation
+    • Model confidence & disagreement panel
+    • Historical regime timeline
+    • Transition probability matrix
+    • Walk-forward backtest results
+    • Active alerts & early warnings
+
+
+DAILY USAGE
+───────────
+  • The server auto-refreshes data daily at 7:00 AM Eastern
+  • Click "↻ Refresh" on the dashboard for manual data pull
+  • Click "⚙ Retrain" to force full model retraining
+  • The dashboard auto-polls every 5 minutes for updates
+
+  API endpoints are available at:
+    http://localhost:8000/api/report      Full JSON report
+    http://localhost:8000/api/regime      Current regime
+    http://localhost:8000/api/allocations Recommended positions
+    http://localhost:8000/api/forecasts   Forward forecasts
+    http://localhost:8000/api/alerts      Active alerts
+    http://localhost:8000/api/backtest    Backtest results
+
+
+TROUBLESHOOTING
+───────────────
+  "ModuleNotFoundError: No module named 'config'"
+    → Make sure Working Directory is set to the project root
+      (the market_intelligence_firm/ folder itself)
+
+  "FRED_API_KEY not set"
+    → Edit .env file or add FRED_API_KEY to run config env vars
+
+  "hmmlearn install fails"
+    → pip install Cython first, then pip install hmmlearn
+    → On Windows, you may need Visual Studio Build Tools
+
+  "Port 8000 already in use"
+    → Change SERVER_PORT in config/settings.py
+    → Or use: --port 8001 in uvicorn parameters
+
+  Dashboard shows "Connecting..."
+    → Wait for the initial pipeline to complete (check PyCharm console)
+    → The loading spinner disappears once the first run finishes
+
+  Yahoo Finance download warnings
+    → These are normal; yfinance occasionally warns about
+      missing tickers. Data still loads correctly.
+
+
+PROJECT STRUCTURE
+─────────────────
+  market_intelligence_firm/
+  ├── .env                  ← YOUR API KEY GOES HERE
+  ├── .env.example
+  ├── README.md
+  ├── requirements.txt
+  ├── main.py               ← Orchestrator (full pipeline)
+  ├── config/
+  │   └── settings.py       ← All configuration
+  ├── data/
+  │   ├── ingestion.py      ← FRED, Yahoo, Shiller data pulls
+  │   └── cache/            ← Auto-cached data files
+  ├── models/
+  │   ├── regime_classifier.py  ← HMM + GMM + XGBoost ensemble
+  │   └── saved/            ← Persisted trained models
+  ├── agents/
+  │   └── economic_manager.py   ← Economic Manager + CIO
+  ├── alerts/
+  │   └── engine.py         ← Early warning system
+  ├── backtest/
+  │   └── engine.py         ← Walk-forward backtester
+  ├── dashboard/
+  │   ├── server.py         ← FastAPI server + scheduler
+  │   └── index.html        ← Interactive dashboard
+  ├── logs/                 ← Runtime logs
+  └── utils/                ← Shared utilities (extensible)
+
+═══════════════════════════════════════════════════════════════

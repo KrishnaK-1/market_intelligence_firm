@@ -1,0 +1,36 @@
+{
+  "best_params": {
+    "yield_curve_threshold": 0.5,
+    "indpro_threshold": 0.8,
+    "sentiment_threshold": -3.0,
+    "payems_threshold": -0.1,
+    "sp500_threshold": -5.0,
+    "credit_spread_quantile": 0.75,
+    "slowdown_signal_count": 4,
+    "crisis_vix_quantile": 0.95,
+    "crisis_spread_quantile": 0.95,
+    "recovery_months": 8,
+    "unrate_accel_threshold": 0.3,
+    "sp500_mom3m_threshold": -5.0,
+    "credit_accel_threshold": 0.1,
+    "umcsent_level_threshold": 70.0
+  },
+  "best_accuracy": 0.9076028022100969,
+  "current_params": {
+    "yield_curve_threshold": 0.5,
+    "indpro_threshold": 0.8,
+    "sentiment_threshold": -3.0,
+    "payems_threshold": -0.1,
+    "sp500_threshold": -5.0,
+    "credit_spread_quantile": 0.75,
+    "slowdown_signal_count": 4,
+    "crisis_vix_quantile": 0.95,
+    "crisis_spread_quantile": 0.95,
+    "recovery_months": 8,
+    "unrate_accel_threshold": 0.3,
+    "sp500_mom3m_threshold": -5.0,
+    "credit_accel_threshold": 0.1,
+    "umcsent_level_threshold": 70.0
+  },
+  "last_updated": "2026-03-15T01:35:27.600420"
+}

@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Intelligence Firm</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #151d2e;
+  --bg-card-hover: #1a2540;
+  --border: #1e293b;
+  --border-bright: #334155;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-green: #22c55e;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-blue: #3b82f6;
+  --accent-purple: #7c3aed;
+  --accent-cyan: #06b6d4;
+  --expansion: #22c55e;
+  --slowdown: #f59e0b;
+  --contraction: #ef4444;
+  --recovery: #3b82f6;
+  --crisis: #7c3aed;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Header ─── */
+.header {
+  background: linear-gradient(180deg, #0f1729 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700; font-size: 16px; color: #fff;
+}
+
+.header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.header-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-bright);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover { background: var(--bg-card-hover); border-color: var(--accent-cyan); }
+.btn-primary { background: var(--accent-blue); border-color: var(--accent-blue); }
+.btn-primary:hover { background: #2563eb; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Layout ─── */
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+.grid-top {
+  display: grid;
+  grid-template-columns: 340px 1fr 320px;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.grid-middle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.grid-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.grid-full {
+  margin-bottom: 20px;
+}
+
+/* ─── Cards ─── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--border-bright); }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
+
+.card-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+/* ─── Regime Display ─── */
+.regime-current {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.regime-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.regime-prob {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.regime-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.regime-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.regime-bar-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  width: 90px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.regime-bar-track {
+  flex: 1;
+  height: 22px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.regime-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+}
+
+.regime-bar-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* ─── Forecast Table ─── */
+.forecast-grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.forecast-grid th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.forecast-grid th:first-child { text-align: left; }
+
+.forecast-grid td {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  padding: 10px 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.forecast-grid td:first-child {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.prob-cell {
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-weight: 600;
+}
+
+/* ─── Alert Cards ─── */
+.alert-item {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border-left: 3px solid;
+  background: rgba(255,255,255,0.02);
+}
+
+.alert-critical { border-left-color: var(--accent-red); background: rgba(239,68,68,0.05); }
+.alert-warning { border-left-color: var(--accent-amber); background: rgba(245,158,11,0.05); }
+.alert-info { border-left-color: var(--accent-blue); background: rgba(59,130,246,0.05); }
+
+.alert-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.alert-message {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.alert-severity {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+/* ─── Allocation ─── */
+.alloc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.alloc-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.alloc-weight {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ─── Transition Matrix ─── */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matrix-table th, .matrix-table td {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 8px;
+  text-align: center;
+}
+
+.matrix-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.matrix-cell {
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+/* ─── Confidence ─── */
+.confidence-meter {
+  position: relative;
+  height: 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s;
+}
+
+.model-vote {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.model-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.model-regime {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ─── Charts ─── */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+}
+
+.chart-container-tall {
+  height: 360px;
+}
+
+/* ─── Feature Importance ─── */
+.feat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.feat-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  width: 110px;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.feat-bar {
+  flex: 1;
+  height: 14px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.feat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+/* ─── Backtest Stats ─── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-item {
+  padding: 12px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.stat-positive { color: var(--accent-green); }
+.stat-negative { color: var(--accent-red); }
+.stat-neutral { color: var(--text-primary); }
+
+/* ─── Loading ─── */
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 14, 23, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner {
+  width: 48px; height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  margin-top: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ─── No-data state ─── */
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1200px) {
+  .grid-top { grid-template-columns: 1fr; }
+  .grid-middle { grid-template-columns: 1fr; }
+  .grid-bottom { grid-template-columns: 1fr; }
+  .container { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Connecting to Market Intelligence Firm...</div>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">MI</div>
+    <div>
+      <h1>Market Intelligence Firm</h1>
+      <div class="header-subtitle">Multi-Manager Investment Decision Platform</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <span id="lastUpdate" style="font-family: 'IBM Plex Mono'; font-size: 11px; color: var(--text-muted);"></span>
+    <button class="btn" onclick="refreshData()">↻ Refresh</button>
+    <button class="btn btn-primary" onclick="retrainModel()">⚙ Retrain</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ═══ Row 1: Regime + Forecasts + Alerts ═══ -->
+  <div class="grid-top">
+
+    <!-- Current Regime -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Current Regime</span>
+        <span class="card-badge" id="regimeConfBadge">—</span>
+      </div>
+      <div class="regime-current">
+        <div class="regime-label" id="regimeLabel">—</div>
+        <div class="regime-prob" id="regimeProb">Loading...</div>
+      </div>
+      <div class="regime-bars" id="regimeBars"></div>
+    </div>
+
+    <!-- Forecast Grid + Timeline Chart -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Regime Forecasts — 1 / 3 / 6 Month</span>
+        <span class="card-badge">HMM Transition</span>
+      </div>
+      <div id="forecastTable" style="margin-bottom: 16px;"></div>
+      <div class="chart-container" style="height: 200px;">
+        <canvas id="forecastChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="card" style="max-height: 500px; overflow-y: auto;">
+      <div class="card-header">
+        <span class="card-title">Alerts & Warnings</span>
+        <span class="card-badge" id="alertCount">0</span>
+      </div>
+      <div id="alertList"><div class="no-data">No alerts</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ Row 2: Allocations + Confidence ═══ -->
+  <div class="grid-middle">
+
+    <!-- Asset Allocation -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recommended Allocation — Probability Weighted</span>
+        <span class="card-badge">Blended</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Asset Classes</div>
+          <div id="assetClassAlloc"></div>
+        </div>
+        <div>
+          <div class="chart-container" style="height: 240px;">
+            <canvas id="allocChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Top Ticker Weights</div>
+        <div id="tickerAlloc" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;"></div>
+      </div>
+    </div>
+
+    <!-- Model Confidence + Disagreement -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Model Confidence & Disagreement</span>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span style="font-size: 12px; color: var(--text-secondary);">Overall Confidence</span>
+          <span id="confValue" style="font-family: 'IBM Plex Mono'; font-size: 14px; font-weight: 700;">—</span>
+        </div>
+        <div class="confidence-meter"><div class="confidence-fill" id="confFill"></div></div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Individual Model Votes</div>
+        <div id="modelVotes"></div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Ensemble Weights</div>
+        <div id="ensembleWeights"></div>
+      </div>
+
+      <div>
+        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Top Features (XGBoost)</div>
+        <div id="featureImportance"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Row 3: Regime Timeline ═══ -->
+  <div class="grid-full">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Historical Regime Timeline</span>
+        <span class="card-badge" id="timelineRange">—</span>
+      </div>
+      <div class="chart-container chart-container-tall">
+        <canvas id="timelineChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Row 4: Transition Matrix + Backtest ═══ -->
+  <div class="grid-middle">
+
+    <!-- Transition Matrix -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Regime Transition Probability Matrix</span>
+        <span class="card-badge">Monthly</span>
+      </div>
+      <div id="transitionMatrix"><div class="no-data">Loading...</div></div>
+    </div>
+
+    <!-- Backtest -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Walk-Forward Backtest Results</span>
+        <span class="card-badge" id="backtestMonths">—</span>
+      </div>
+      <div id="backtestStats" class="stat-grid" style="margin-bottom: 16px;"></div>
+      <div class="chart-container" style="height: 220px;">
+        <canvas id="backtestChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  State & Config
+// ═══════════════════════════════════════════════════════════════════
+
+const REGIME_COLORS = {
+  'Expansion': '#22c55e',
+  'Slowdown': '#f59e0b',
+  'Contraction': '#ef4444',
+  'Recovery': '#3b82f6',
+  'Crisis': '#7c3aed',
+};
+
+let charts = {};
+let refreshTimer = null;
+
+// ═══════════════════════════════════════════════════════════════════
+//  Data Fetching
+// ═══════════════════════════════════════════════════════════════════
+
+async function fetchJSON(endpoint) {
+  try {
+    const resp = await fetch(endpoint);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (e) {
+    console.error(`Failed to fetch ${endpoint}:`, e);
+    return null;
+  }
+}
+
+async function loadDashboard() {
+  const report = await fetchJSON('/api/report');
+  if (!report) {
+    document.getElementById('statusText').textContent = 'Error — retrying...';
+    document.getElementById('statusDot').style.background = 'var(--accent-red)';
+    setTimeout(loadDashboard, 5000);
+    return;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('statusText').textContent = 'Live';
+  document.getElementById('statusDot').style.background = 'var(--accent-green)';
+
+  if (report.last_run) {
+    const dt = new Date(report.last_run);
+    document.getElementById('lastUpdate').textContent = dt.toLocaleString();
+  }
+
+  const econ = report.managers?.['Economic Regime Manager'] || {};
+
+  renderRegime(econ);
+  renderForecasts(econ);
+  renderAlerts(report.alerts || []);
+  renderAllocations(econ);
+  renderConfidence(econ);
+  renderTimeline(econ);
+  renderTransitionMatrix(econ);
+  renderBacktest(report.backtest);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Render Functions
+// ═══════════════════════════════════════════════════════════════════
+
+function renderRegime(econ) {
+  const regime = econ.current_regime || '—';
+  const probs = econ.regime_probabilities || {};
+  const conf = econ.confidence || 0;
+
+  document.getElementById('regimeLabel').textContent = regime;
+  document.getElementById('regimeLabel').style.color = REGIME_COLORS[regime] || '#fff';
+  document.getElementById('regimeProb').textContent = `${(probs[regime] * 100 || 0).toFixed(1)}% probability`;
+  document.getElementById('regimeConfBadge').textContent = `${(conf * 100).toFixed(0)}% conf`;
+
+  const barsHtml = Object.entries(probs)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, prob]) => `
+      <div class="regime-bar-row">
+        <div class="regime-bar-label">${name}</div>
+        <div class="regime-bar-track">
+          <div class="regime-bar-fill" style="width: ${prob * 100}%; background: ${REGIME_COLORS[name]}">
+            <span class="regime-bar-value">${(prob * 100).toFixed(1)}%</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  document.getElementById('regimeBars').innerHTML = barsHtml;
+}
+
+function renderForecasts(econ) {
+  const forecasts = econ.forecasts || {};
+  const regimes = ['Expansion', 'Slowdown', 'Contraction', 'Recovery', 'Crisis'];
+
+  // Table
+  let html = '<table class="forecast-grid"><thead><tr><th>Regime</th><th>Now</th>';
+  const horizons = Object.keys(forecasts).sort();
+  horizons.forEach(h => { html += `<th>${h}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  const currentProbs = econ.regime_probabilities || {};
+  regimes.forEach(r => {
+    html += `<tr><td style="color: ${REGIME_COLORS[r]}">${r}</td>`;
+    const nowVal = currentProbs[r] || 0;
+    html += `<td><span class="prob-cell" style="background: ${REGIME_COLORS[r]}20; color: ${REGIME_COLORS[r]}">${(nowVal * 100).toFixed(1)}%</span></td>`;
+    horizons.forEach(h => {
+      const val = forecasts[h]?.[r] || 0;
+      const opacity = Math.max(0.15, val);
+      html += `<td><span class="prob-cell" style="background: ${REGIME_COLORS[r]}${Math.round(opacity * 40).toString(16).padStart(2, '0')}; color: ${REGIME_COLORS[r]}">${(val * 100).toFixed(1)}%</span></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('forecastTable').innerHTML = html;
+
+  // Chart
+  if (charts.forecast) charts.forecast.destroy();
+  const labels = ['Now', ...horizons];
+  const datasets = regimes.map(r => ({
+    label: r,
+    data: [currentProbs[r] || 0, ...horizons.map(h => forecasts[h]?.[r] || 0)],
+    borderColor: REGIME_COLORS[r],
+    backgroundColor: REGIME_COLORS[r] + '20',
+    borderWidth: 2,
+    fill: true,
+    tension: 0.3,
+    pointRadius: 4,
+  }));
+
+  charts.forecast = new Chart(document.getElementById('forecastChart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 1, ticks: { callback: v => (v*100)+'%', color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { color: '#1e293b' } },
+        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function renderAlerts(alerts) {
+  document.getElementById('alertCount').textContent = alerts.length;
+  if (alerts.length === 0) {
+    document.getElementById('alertList').innerHTML = '<div class="no-data">No active alerts — all clear</div>';
+    return;
+  }
+
+  const html = alerts.map(a => {
+    const cls = a.severity === 'critical' ? 'alert-critical' : a.severity === 'warning' ? 'alert-warning' : 'alert-info';
+    const sevColor = a.severity === 'critical' ? 'var(--accent-red)' : a.severity === 'warning' ? 'var(--accent-amber)' : 'var(--accent-blue)';
+    return `
+      <div class="alert-item ${cls}">
+        <div class="alert-severity" style="color: ${sevColor}">${a.severity}</div>
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-message">${a.message}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('alertList').innerHTML = html;
+}
+
+function renderAllocations(econ) {
+  const acAlloc = econ.asset_class_allocation || {};
+  const tickerAlloc = econ.ticker_allocation || {};
+
+  // Asset class list
+  const acHtml = Object.entries(acAlloc)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, w]) => `
+      <div class="alloc-row">
+        <span class="alloc-name">${name}</span>
+        <span class="alloc-weight">${(w * 100).toFixed(1)}%</span>
+      </div>
+    `).join('');
+  document.getElementById('assetClassAlloc').innerHTML = acHtml;
+
+  // Doughnut chart
+  if (charts.alloc) charts.alloc.destroy();
+  const acEntries = Object.entries(acAlloc).sort((a, b) => b[1] - a[1]);
+  const acColors = ['#22c55e', '#3b82f6', '#f59e0b', '#7c3aed', '#06b6d4', '#ef4444'];
+  charts.alloc = new Chart(document.getElementById('allocChart'), {
+    type: 'doughnut',
+    data: {
+      labels: acEntries.map(e => e[0]),
+      datasets: [{
+        data: acEntries.map(e => (e[1] * 100).toFixed(1)),
+        backgroundColor: acColors.slice(0, acEntries.length),
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 }, padding: 8, boxWidth: 12 },
+        },
+      },
+    },
+  });
+
+  // Top tickers
+  const topTickers = Object.entries(tickerAlloc)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+  const tickerHtml = topTickers.map(([t, w]) => `
+    <div style="display: flex; justify-content: space-between; padding: 3px 0; font-family: 'IBM Plex Mono'; font-size: 11px;">
+      <span style="color: var(--text-muted)">${t}</span>
+      <span style="color: var(--text-primary); font-weight: 600;">${(w * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+  document.getElementById('tickerAlloc').innerHTML = tickerHtml;
+}
+
+function renderConfidence(econ) {
+  const conf = econ.confidence || 0;
+  const agreement = econ.model_agreement || 0;
+  const models = econ.individual_models || {};
+  const weights = econ.ensemble_weights || {};
+  const featImp = econ.feature_importance || {};
+
+  // Confidence meter
+  document.getElementById('confValue').textContent = (conf * 100).toFixed(0) + '%';
+  const fillColor = conf > 0.7 ? 'var(--accent-green)' : conf > 0.4 ? 'var(--accent-amber)' : 'var(--accent-red)';
+  const fillEl = document.getElementById('confFill');
+  fillEl.style.width = (conf * 100) + '%';
+  fillEl.style.background = fillColor;
+
+  // Model votes
+  const votesHtml = Object.entries(models).map(([name, regime]) => `
+    <div class="model-vote">
+      <span class="model-name">${name.toUpperCase()}</span>
+      <span class="model-regime" style="background: ${REGIME_COLORS[regime]}20; color: ${REGIME_COLORS[regime]}">${regime}</span>
+    </div>
+  `).join('');
+  document.getElementById('modelVotes').innerHTML = votesHtml;
+
+  // Ensemble weights
+  const weightsHtml = Object.entries(weights).map(([name, w]) => `
+    <div style="display: flex; justify-content: space-between; padding: 4px 0; font-family: 'IBM Plex Mono'; font-size: 11px;">
+      <span style="color: var(--text-muted)">${name.toUpperCase()}</span>
+      <span style="color: var(--accent-cyan); font-weight: 600;">${(w * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+  document.getElementById('ensembleWeights').innerHTML = weightsHtml;
+
+  // Feature importance
+  const featEntries = Object.entries(featImp).slice(0, 10);
+  const maxImp = Math.max(...featEntries.map(e => e[1]), 0.01);
+  const featHtml = featEntries.map(([name, val]) => `
+    <div class="feat-row">
+      <div class="feat-name">${name}</div>
+      <div class="feat-bar">
+        <div class="feat-bar-fill" style="width: ${(val / maxImp) * 100}%"></div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('featureImportance').innerHTML = featHtml;
+}
+
+function renderTimeline(econ) {
+  const history = econ.regime_history;
+  if (!history || !history.dates) {
+    document.getElementById('timelineRange').textContent = 'No data';
+    return;
+  }
+
+  const dates = history.dates;
+  const regimes = history.regimes;
+  document.getElementById('timelineRange').textContent = `${dates[0]?.slice(0, 7)} → ${dates[dates.length-1]?.slice(0, 7)}`;
+
+  // Downsample if too many points
+  const maxPoints = 600;
+  const step = Math.max(1, Math.floor(dates.length / maxPoints));
+  const sampledDates = [];
+  const sampledRegimes = [];
+  for (let i = 0; i < dates.length; i += step) {
+    sampledDates.push(dates[i]);
+    sampledRegimes.push(regimes[i]);
+  }
+
+  const regimeNames = ['Expansion', 'Slowdown', 'Contraction', 'Recovery', 'Crisis'];
+  const colors = regimeNames.map(r => REGIME_COLORS[r]);
+
+  // Build datasets for each regime (stacked area-like)
+  const datasets = regimeNames.map((name, idx) => ({
+    label: name,
+    data: sampledRegimes.map(r => r === idx ? 1 : 0),
+    backgroundColor: colors[idx] + 'CC',
+    borderColor: colors[idx],
+    borderWidth: 0,
+    barPercentage: 1.0,
+    categoryPercentage: 1.0,
+  }));
+
+  if (charts.timeline) charts.timeline.destroy();
+  charts.timeline = new Chart(document.getElementById('timelineChart'), {
+    type: 'bar',
+    data: {
+      labels: sampledDates.map(d => d.slice(0, 7)),
+      datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 }, padding: 12, boxWidth: 12 },
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0]?.label || '',
+            label: (item) => item.dataset.label,
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: {
+            color: '#64748b',
+            font: { family: 'IBM Plex Mono', size: 9 },
+            maxTicksLimit: 20,
+            maxRotation: 45,
+          },
+          grid: { display: false },
+        },
+        y: {
+          stacked: true,
+          display: false,
+          max: 1,
+        },
+      },
+    },
+  });
+}
+
+function renderTransitionMatrix(econ) {
+  const matrix = econ.transition_matrix;
+  if (!matrix) {
+    document.getElementById('transitionMatrix').innerHTML = '<div class="no-data">Not available</div>';
+    return;
+  }
+
+  const regimes = Object.keys(matrix);
+  let html = '<table class="matrix-table"><thead><tr><th>From ↓ / To →</th>';
+  regimes.forEach(r => { html += `<th style="color: ${REGIME_COLORS[r]}">${r.slice(0, 5)}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  regimes.forEach(from => {
+    html += `<tr><td style="color: ${REGIME_COLORS[from]}; font-weight: 600; text-align: left;">${from}</td>`;
+    regimes.forEach(to => {
+      const val = matrix[from]?.[to] || 0;
+      const intensity = Math.round(val * 255);
+      const bg = val > 0.5 ? `rgba(6, 182, 212, ${val * 0.6})` : `rgba(255, 255, 255, ${val * 0.15})`;
+      html += `<td><span class="matrix-cell" style="background: ${bg}">${(val * 100).toFixed(1)}%</span></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('transitionMatrix').innerHTML = html;
+}
+
+function renderBacktest(bt) {
+  if (!bt || bt.error) {
+    document.getElementById('backtestStats').innerHTML = '<div class="no-data">Backtest not available</div>';
+    return;
+  }
+
+  const stats = bt.strategy_stats || {};
+  const bmStats = bt.benchmark_stats || {};
+
+  document.getElementById('backtestMonths').textContent = `${stats.n_months || 0} months`;
+
+  const statClass = v => v > 0 ? 'stat-positive' : v < 0 ? 'stat-negative' : 'stat-neutral';
+
+  document.getElementById('backtestStats').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-label">Annual Return</div>
+      <div class="stat-value ${statClass(stats.annualized_return)}">${((stats.annualized_return || 0) * 100).toFixed(1)}%</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Sharpe Ratio</div>
+      <div class="stat-value ${statClass(stats.sharpe_ratio)}">${(stats.sharpe_ratio || 0).toFixed(2)}</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Max Drawdown</div>
+      <div class="stat-value stat-negative">${((stats.max_drawdown || 0) * 100).toFixed(1)}%</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-value stat-neutral">${((stats.pct_positive_months || 0) * 100).toFixed(0)}%</div>
+    </div>
+  `;
+
+  // Cumulative returns chart
+  const stratData = bt.strategy_cumulative_returns;
+  const bmData = bt.benchmark_cumulative_returns;
+  if (!stratData?.dates) return;
+
+  if (charts.backtest) charts.backtest.destroy();
+  charts.backtest = new Chart(document.getElementById('backtestChart'), {
+    type: 'line',
+    data: {
+      labels: stratData.dates.map(d => d.slice(0, 7)),
+      datasets: [
+        {
+          label: 'Strategy',
+          data: stratData.values,
+          borderColor: '#06b6d4',
+          backgroundColor: '#06b6d420',
+          borderWidth: 2,
+          fill: true,
+          pointRadius: 0,
+        },
+        {
+          label: 'Benchmark',
+          data: bmData?.values || [],
+          borderColor: '#64748b',
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          fill: false,
+          pointRadius: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 } },
+        },
+      },
+      scales: {
+        y: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { color: '#1e293b' } },
+        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Actions
+// ═══════════════════════════════════════════════════════════════════
+
+async function refreshData() {
+  document.getElementById('statusText').textContent = 'Refreshing...';
+  document.getElementById('statusDot').style.background = 'var(--accent-amber)';
+  await fetch('/api/refresh', { method: 'POST' });
+  // Poll until done
+  const poll = setInterval(async () => {
+    const health = await fetchJSON('/api/health');
+    if (health && !health.is_running) {
+      clearInterval(poll);
+      await loadDashboard();
+    }
+  }, 3000);
+}
+
+async function retrainModel() {
+  if (!confirm('Retrain will clear cache and rebuild all models. This may take several minutes. Continue?')) return;
+  document.getElementById('statusText').textContent = 'Retraining...';
+  document.getElementById('statusDot').style.background = 'var(--accent-purple)';
+  await fetch('/api/retrain', { method: 'POST' });
+  const poll = setInterval(async () => {
+    const health = await fetchJSON('/api/health');
+    if (health && !health.is_running) {
+      clearInterval(poll);
+      await loadDashboard();
+    }
+  }, 5000);
+}
+
+// Auto-refresh every 5 minutes
+setInterval(loadDashboard, 5 * 60 * 1000);
+
+// Initial load
+loadDashboard();
+</script>
+</body>
+</html>
