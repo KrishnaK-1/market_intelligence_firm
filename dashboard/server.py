@@ -1,19 +1,20 @@
 """
-FastAPI Server — Market Intelligence Dashboard
+FastAPI Server - Market Intelligence Dashboard
 ================================================
 Endpoints:
-  GET  /                     → Dashboard (HTML)
-  GET  /api/report           → Full JSON report
-  GET  /api/regime           → Current regime + probabilities
-  GET  /api/allocations      → Recommended allocations
-  GET  /api/forecasts        → Forward regime forecasts
-  GET  /api/alerts           → Active alerts
-  GET  /api/backtest         → Backtest results
-  GET  /api/transition       → Transition probability matrix
-  GET  /api/confidence       → Model confidence/disagreement
-  POST /api/refresh          → Manual data refresh (inference only)
-  POST /api/retrain          → Force retrain + full pipeline
-  GET  /api/health           → Health check
+  GET  /                     -> Dashboard (HTML)
+  GET  /api/report           -> Full JSON report
+  GET  /api/regime           -> Current regime + probabilities
+  GET  /api/allocations      -> Recommended allocations
+  GET  /api/forecasts        -> Forward regime forecasts
+  GET  /api/alerts           -> Active alerts
+  GET  /api/backtest         -> Backtest results
+  GET  /api/transition       -> Transition probability matrix
+  GET  /api/confidence       -> Model confidence/disagreement
+  GET  /api/nowcast          -> Real-time nowcast (XGBoost only)
+  POST /api/refresh          -> Manual data refresh (inference only)
+  POST /api/retrain          -> Force retrain + full pipeline
+  GET  /api/health           -> Health check
 
 Auto-refreshes daily at 7 AM ET.
 """
@@ -40,9 +41,9 @@ from main import MarketIntelligenceFirm
 
 logger = logging.getLogger("server")
 
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 #  Global State
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 
 firm = MarketIntelligenceFirm()
 latest_report: Optional[dict] = None
@@ -95,14 +96,14 @@ async def lifespan(app: FastAPI):
     logger.info("Server shutting down")
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 #  App Setup
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 
 app = FastAPI(
     title="Market Intelligence Firm",
     description="Multi-manager investment decision platform",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -114,9 +115,9 @@ app.add_middleware(
 )
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 #  API Endpoints
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 
 
 @app.get("/api/health")
@@ -205,6 +206,44 @@ async def get_confidence():
     }
 
 
+@app.get("/api/nowcast")
+async def get_nowcast():
+    """
+    Real-time nowcast using XGBoost only.
+    Fetches latest daily/weekly data, constructs feature row,
+    and returns regime classification with freshness metadata.
+    """
+    try:
+        from data.nowcast import run_nowcast
+
+        # Pass the firm's FRED data and classifier for efficiency
+        result = run_nowcast(
+            fred_monthly=firm.fred_data,
+            classifier=firm.classifier,
+        )
+
+        # Add comparison with official model
+        if latest_report:
+            econ = latest_report.get("managers", {}).get("Economic Regime Manager", {})
+            official_regime = econ.get("current_regime", "Unknown")
+            result["comparison"] = {
+                "official_regime": official_regime,
+                "nowcast_regime": result.get("regime", "Unknown"),
+                "divergence": official_regime != result.get("regime", "Unknown"),
+            }
+
+        return JSONResponse(content=json.loads(json.dumps(result, default=str)))
+
+    except Exception as e:
+        logger.error(f"Nowcast failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "regime": "Unknown"},
+        )
+
+
 @app.post("/api/refresh")
 async def manual_refresh(background_tasks: BackgroundTasks):
     global is_running
@@ -245,9 +284,9 @@ async def manual_retrain(background_tasks: BackgroundTasks):
     return {"status": "started", "message": "Full retrain initiated"}
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 #  Dashboard (served as HTML)
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -259,9 +298,9 @@ async def dashboard():
     return HTMLResponse(content="<h1>Dashboard loading... Run server to generate.</h1>")
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 #  Entry Point
-# ═══════════════════════════════════════════════════════════════════════
+# =====================================================================
 
 if __name__ == "__main__":
     import uvicorn

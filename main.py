@@ -189,9 +189,15 @@ class MarketIntelligenceFirm:
             # If optimization found better params, retrain the model NOW
             # so the dashboard serves the improved version
             opt = fb.get("optimization")
-            if opt and opt.get("best_score", 0) > 0:
+            current_score = (
+                    0.6 * fb.get("ground_truth_validation", {}).get("accuracy", 0)
+                    + 0.4 * fb.get("return_validation", {}).get("overall_alignment", 0)
+            )
+            best_opt_score = opt.get("best_score", 0) if opt else 0
+            improvement = best_opt_score - current_score
+            if opt and improvement > 0.02:
                 best_params = opt.get("best_params", {})
-                logger.info("Step 5c: Re-training with optimized params...")
+                logger.info(f"Step 5c: Re-training with optimized params (improvement: {improvement:.3f})...")
                 self.classifier = EnsembleRegimeClassifier()
                 self.classifier._label_params = best_params
                 self.classifier.fit(self.feature_matrix)
@@ -216,6 +222,25 @@ class MarketIntelligenceFirm:
                 ret_new = self.feedback_loop._validate_returns(new_preds, self.feature_matrix)
                 logger.info(f"  AFTER optimization: GT={gt_new['accuracy']:.1%}, Ret={ret_new['overall_alignment']:.1%}")
 
+                # Re-generate alerts with updated model
+                self._alerts = self.alert_engine.evaluate(
+                    current_proba=self.economic_manager.current_proba,
+                    current_regime=self.economic_manager.current_regime,
+                    forecasts=self.economic_manager.forecasts,
+                    confidence_data=self.economic_manager.confidence_data,
+                    regime_history=self.economic_manager.regime_history,
+                )
+                # Save improved params as the new baseline for next startup
+                self.param_optimizer.update_best(best_params, best_opt_score)
+            else:
+                if opt:
+                    logger.info(f"  Optimizer found score {best_opt_score:.3f} vs current {current_score:.3f} "
+                            f"(improvement {improvement:.3f} < 0.02 threshold). Keeping current model.")
+                    # Save CURRENT model's params as best so next startup uses them
+                    self.param_optimizer.update_best(
+                        self.classifier._label_params,
+                        current_score,
+                    )
         except Exception as e:
             logger.error(f"Feedback loop failed: {e}")
             import traceback

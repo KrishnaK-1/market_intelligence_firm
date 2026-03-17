@@ -5,843 +5,967 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Market Intelligence Firm</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg-primary: #0a0e17;
-  --bg-secondary: #111827;
-  --bg-card: #151d2e;
-  --bg-card-hover: #1a2540;
-  --border: #1e293b;
-  --border-bright: #334155;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-green: #22c55e;
-  --accent-amber: #f59e0b;
-  --accent-red: #ef4444;
-  --accent-blue: #3b82f6;
-  --accent-purple: #7c3aed;
-  --accent-cyan: #06b6d4;
-  --expansion: #22c55e;
-  --slowdown: #f59e0b;
-  --contraction: #ef4444;
-  --recovery: #3b82f6;
-  --crisis: #7c3aed;
+  --bg-primary: #080c14;
+  --bg-secondary: #0e1420;
+  --bg-card: #131b2b;
+  --bg-card-hover: #182238;
+  --bg-input: #1a2336;
+  --border: #1c2840;
+  --border-bright: #2a3a56;
+  --text-primary: #e8ecf4;
+  --text-secondary: #8b9ab8;
+  --text-muted: #586580;
+  --accent-green: #2dd4a8;
+  --accent-amber: #f0a030;
+  --accent-red: #f04848;
+  --accent-blue: #4090f0;
+  --accent-purple: #8050e8;
+  --accent-cyan: #20c0e0;
+  --expansion: #2dd4a8;
+  --slowdown: #f0a030;
+  --contraction: #f04848;
+  --recovery: #4090f0;
+  --crisis: #8050e8;
+  --font-display: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: var(--font-display);
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 /* ─── Header ─── */
 .header {
-  background: linear-gradient(180deg, #0f1729 0%, var(--bg-primary) 100%);
+  background: linear-gradient(180deg, #0c1222 0%, var(--bg-primary) 100%);
   border-bottom: 1px solid var(--border);
-  padding: 20px 32px;
+  padding: 16px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+.header-left { display: flex; align-items: center; gap: 16px; }
 
 .logo {
-  width: 36px; height: 36px;
+  width: 40px; height: 40px;
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 700; font-size: 16px; color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700; font-size: 18px; color: #fff;
 }
 
 .header h1 {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 18px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
   letter-spacing: -0.5px;
 }
 
-.header-subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
-}
+.header-subtitle { font-size: 13px; color: var(--text-muted); }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-family: 'IBM Plex Mono', monospace;
-}
-
-.status-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--accent-green);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
+.header-actions { display: flex; gap: 10px; align-items: center; }
 
 .btn {
-  padding: 8px 16px;
-  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 8px;
   border: 1px solid var(--border-bright);
   background: var(--bg-card);
-  color: var(--text-primary);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn:hover { background: var(--bg-card-hover); border-color: var(--accent-cyan); }
-.btn-primary { background: var(--accent-blue); border-color: var(--accent-blue); }
-.btn-primary:hover { background: #2563eb; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover { opacity: 0.9; }
 
-/* ─── Layout ─── */
-.container {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 24px 32px;
+/* ─── Tab Navigation ─── */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  overflow-x: auto;
 }
 
-.grid-top {
-  display: grid;
-  grid-template-columns: 340px 1fr 320px;
-  gap: 20px;
-  margin-bottom: 20px;
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 24px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,0.02); }
+.tab-btn.active {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+  background: rgba(32, 192, 224, 0.04);
 }
 
-.grid-middle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.grid-bottom {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.grid-full {
-  margin-bottom: 20px;
-}
+/* ─── Tab Content ─── */
+.tab-content { display: none; padding: 28px 32px; }
+.tab-content.active { display: block; }
 
 /* ─── Cards ─── */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  transition: border-color 0.2s;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
 }
-.card:hover { border-color: var(--border-bright); }
-
 .card-header {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
-
-.card-title {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--text-muted);
-}
-
 .card-badge {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: rgba(6, 182, 212, 0.1);
-  color: var(--accent-cyan);
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-/* ─── Regime Display ─── */
-.regime-current {
+/* ─── Grid layouts ─── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+
+/* ─── Regime indicator ─── */
+.regime-hero {
   text-align: center;
-  padding: 20px 0;
+  padding: 36px 20px;
 }
-
-.regime-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 28px;
+.regime-name {
+  font-family: var(--font-mono);
+  font-size: 52px;
   font-weight: 700;
+  letter-spacing: -2px;
   margin-bottom: 8px;
 }
-
-.regime-prob {
-  font-size: 14px;
+.regime-conf {
+  font-size: 20px;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  font-weight: 500;
+}
+.regime-conf strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
-.regime-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.regime-bar-row {
+/* ─── Probability bars ─── */
+.prob-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  margin-bottom: 10px;
 }
-
-.regime-bar-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  width: 90px;
+.prob-label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  width: 120px;
   color: var(--text-secondary);
-  text-align: right;
 }
-
-.regime-bar-track {
+.prob-bar-bg {
   flex: 1;
-  height: 22px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 4px;
+  height: 28px;
+  background: var(--bg-input);
+  border-radius: 6px;
   overflow: hidden;
   position: relative;
 }
-
-.regime-bar-fill {
+.prob-bar-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 6px;
+  transition: width 0.6s ease;
   display: flex;
   align-items: center;
-  padding-left: 8px;
+  padding-left: 10px;
+}
+.prob-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 52px;
+  text-align: right;
+  color: var(--text-primary);
 }
 
-.regime-bar-value {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-}
-
-/* ─── Forecast Table ─── */
-.forecast-grid {
+/* ─── Forecast table ─── */
+.forecast-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 15px;
 }
-
-.forecast-grid th {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+.forecast-table th {
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--text-muted);
-  padding: 8px 12px;
-  text-align: center;
+  padding: 10px 14px;
+  text-align: left;
   border-bottom: 1px solid var(--border);
 }
-
-.forecast-grid th:first-child { text-align: left; }
-
-.forecast-grid td {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
-  padding: 10px 12px;
-  text-align: center;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+.forecast-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.forecast-grid td:first-child {
-  text-align: left;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.prob-cell {
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-weight: 600;
-}
-
-/* ─── Alert Cards ─── */
+/* ─── Alert badges ─── */
 .alert-item {
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  border-left: 3px solid;
-  background: rgba(255,255,255,0.02);
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  border-left: 4px solid;
 }
+.alert-critical { background: rgba(240,72,72,0.08); border-left-color: var(--accent-red); }
+.alert-warning { background: rgba(240,160,48,0.08); border-left-color: var(--accent-amber); }
+.alert-info { background: rgba(64,144,240,0.08); border-left-color: var(--accent-blue); }
+.alert-title { font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+.alert-desc { color: var(--text-secondary); font-size: 14px; }
 
-.alert-critical { border-left-color: var(--accent-red); background: rgba(239,68,68,0.05); }
-.alert-warning { border-left-color: var(--accent-amber); background: rgba(245,158,11,0.05); }
-.alert-info { border-left-color: var(--accent-blue); background: rgba(59,130,246,0.05); }
-
-.alert-title {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 4px;
+/* ─── Nowcast placeholder ─── */
+.nowcast-placeholder {
+  border: 2px dashed var(--border-bright);
+  border-radius: 14px;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
 }
-
-.alert-message {
-  font-size: 12px;
+.nowcast-placeholder h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
   color: var(--text-secondary);
-  line-height: 1.5;
 }
 
-.alert-severity {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 4px;
+/* ─── Signal checklist ─── */
+.signal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 15px;
+  border-bottom: 1px solid var(--border);
 }
+.signal-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.signal-firing { background: var(--accent-red); box-shadow: 0 0 8px rgba(240,72,72,0.4); }
+.signal-quiet { background: var(--accent-green); opacity: 0.5; }
 
-/* ─── Allocation ─── */
+/* ─── Allocation table ─── */
 .alloc-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
 }
-
-.alloc-name {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
+.alloc-name { font-weight: 500; }
 .alloc-weight {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 17px;
 }
 
-/* ─── Transition Matrix ─── */
-.matrix-table {
-  width: 100%;
-  border-collapse: collapse;
+/* ─── Weight sliders ─── */
+.slider-group {
+  margin-bottom: 20px;
 }
-
-.matrix-table th, .matrix-table td {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  padding: 8px;
-  text-align: center;
-}
-
-.matrix-table th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.matrix-cell {
-  border-radius: 4px;
-  padding: 4px 6px;
-}
-
-/* ─── Confidence ─── */
-.confidence-meter {
-  position: relative;
-  height: 12px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 6px;
-  overflow: hidden;
-  margin: 8px 0;
-}
-
-.confidence-fill {
-  height: 100%;
-  border-radius: 6px;
-  transition: width 0.8s;
-}
-
-.model-vote {
+.slider-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  font-size: 12px;
+  margin-bottom: 8px;
+  font-size: 15px;
 }
-
-.model-name {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  color: var(--text-muted);
+.slider-label { font-weight: 600; }
+.slider-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-cyan);
+  font-size: 16px;
 }
-
-.model-regime {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-/* ─── Charts ─── */
-.chart-container {
-  position: relative;
+input[type="range"] {
+  -webkit-appearance: none;
   width: 100%;
-  height: 280px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-input);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  cursor: pointer;
+  border: 3px solid var(--bg-primary);
 }
 
-.chart-container-tall {
-  height: 360px;
+/* ─── Model vote comparison ─── */
+.model-vote-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+}
+.model-vote-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  width: 80px;
+  font-size: 15px;
+}
+.model-vote-regime {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 5px 14px;
+  border-radius: 6px;
 }
 
-/* ─── Feature Importance ─── */
+/* ─── Feature importance ─── */
 .feat-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
-
 .feat-name {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  width: 110px;
-  text-align: right;
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  width: 160px;
+  flex-shrink: 0;
 }
-
 .feat-bar {
   flex: 1;
-  height: 14px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 3px;
+  height: 22px;
+  background: var(--bg-input);
+  border-radius: 4px;
   overflow: hidden;
 }
-
 .feat-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
-  border-radius: 3px;
-  transition: width 0.5s;
+  border-radius: 4px;
+  transition: width 0.4s;
 }
 
-/* ─── Backtest Stats ─── */
-.stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+/* ─── Transition matrix ─── */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.matrix-table th {
+  padding: 10px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.matrix-table td {
+  padding: 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+  font-weight: 600;
 }
 
-.stat-item {
-  padding: 12px;
-  background: rgba(255,255,255,0.02);
-  border-radius: 8px;
+/* ─── Backtest stats ─── */
+.stat-box {
+  text-align: center;
+  padding: 20px;
 }
-
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
 .stat-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+  font-weight: 600;
 }
 
-.stat-value {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.stat-positive { color: var(--accent-green); }
-.stat-negative { color: var(--accent-red); }
-.stat-neutral { color: var(--text-primary); }
-
-/* ─── Loading ─── */
-.loading-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(10, 14, 23, 0.9);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.spinner {
-  width: 48px; height: 48px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent-cyan);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.loading-text {
-  margin-top: 16px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-/* ─── No-data state ─── */
-.no-data {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100px;
-  color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-}
+/* ─── Chart containers ─── */
+.chart-container { position: relative; width: 100%; }
+.chart-sm { height: 200px; }
+.chart-md { height: 300px; }
+.chart-lg { height: 400px; }
+.chart-xl { height: 500px; }
 
 /* ─── Responsive ─── */
 @media (max-width: 1200px) {
-  .grid-top { grid-template-columns: 1fr; }
-  .grid-middle { grid-template-columns: 1fr; }
-  .grid-bottom { grid-template-columns: 1fr; }
-  .container { padding: 16px; }
+  .grid-2, .grid-3, .grid-2-1, .grid-1-2 { grid-template-columns: 1fr; }
 }
+
+/* ─── Ticker table ─── */
+.ticker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 20px;
+}
+.ticker-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.ticker-name { color: var(--text-muted); }
+.ticker-weight { font-weight: 600; }
+
+/* ─── Cap slider ─── */
+.cap-group { margin-bottom: 14px; }
+
+/* ─── Weight freeze ─── */
+.freeze-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Status dot ─── */
+.status-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.status-live { background: var(--accent-green); box-shadow: 0 0 8px rgba(45,212,168,0.5); }
 </style>
 </head>
 <body>
 
-<!-- Loading overlay -->
-<div id="loading" class="loading-overlay">
-  <div class="spinner"></div>
-  <div class="loading-text">Connecting to Market Intelligence Firm...</div>
-</div>
-
-<!-- Header -->
-<header class="header">
+<!-- ═══════ HEADER ═══════ -->
+<div class="header">
   <div class="header-left">
     <div class="logo">MI</div>
     <div>
       <h1>Market Intelligence Firm</h1>
-      <div class="header-subtitle">Multi-Manager Investment Decision Platform</div>
+      <div class="header-subtitle"><span class="status-dot status-live"></span>Live | <span id="lastRun">--</span></div>
     </div>
   </div>
-  <div class="header-right">
-    <div class="status-indicator">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">Connecting...</span>
-    </div>
-    <span id="lastUpdate" style="font-family: 'IBM Plex Mono'; font-size: 11px; color: var(--text-muted);"></span>
-    <button class="btn" onclick="refreshData()">↻ Refresh</button>
-    <button class="btn btn-primary" onclick="retrainModel()">⚙ Retrain</button>
+  <div class="header-actions">
+    <button class="btn" onclick="refreshData()">Refresh Data</button>
+    <button class="btn btn-primary" onclick="retrain()">Retrain Model</button>
   </div>
-</header>
+</div>
 
-<div class="container">
+<!-- ═══════ TAB NAVIGATION ═══════ -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('regime')">Current Regime</button>
+  <button class="tab-btn" onclick="switchTab('portfolio')">Portfolio & Allocations</button>
+  <button class="tab-btn" onclick="switchTab('history')">Historical Analysis</button>
+  <button class="tab-btn" onclick="switchTab('diagnostics')">Model Diagnostics</button>
+</div>
 
-  <!-- ═══ Row 1: Regime + Forecasts + Alerts ═══ -->
-  <div class="grid-top">
-
-    <!-- Current Regime -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Current Regime</span>
-        <span class="card-badge" id="regimeConfBadge">—</span>
-      </div>
-      <div class="regime-current">
-        <div class="regime-label" id="regimeLabel">—</div>
-        <div class="regime-prob" id="regimeProb">Loading...</div>
-      </div>
-      <div class="regime-bars" id="regimeBars"></div>
-    </div>
-
-    <!-- Forecast Grid + Timeline Chart -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Regime Forecasts — 1 / 3 / 6 Month</span>
-        <span class="card-badge">HMM Transition</span>
-      </div>
-      <div id="forecastTable" style="margin-bottom: 16px;"></div>
-      <div class="chart-container" style="height: 200px;">
-        <canvas id="forecastChart"></canvas>
-      </div>
-    </div>
-
-    <!-- Alerts -->
-    <div class="card" style="max-height: 500px; overflow-y: auto;">
-      <div class="card-header">
-        <span class="card-title">Alerts & Warnings</span>
-        <span class="card-badge" id="alertCount">0</span>
-      </div>
-      <div id="alertList"><div class="no-data">No alerts</div></div>
-    </div>
-  </div>
-
-  <!-- ═══ Row 2: Allocations + Confidence ═══ -->
-  <div class="grid-middle">
-
-    <!-- Asset Allocation -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Recommended Allocation — Probability Weighted</span>
-        <span class="card-badge">Blended</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div>
-          <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Asset Classes</div>
-          <div id="assetClassAlloc"></div>
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIEW 1: CURRENT REGIME                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-regime" class="tab-content active">
+  <div class="grid-2-1">
+    <div>
+      <!-- Regime Hero -->
+      <div class="card">
+        <div class="regime-hero">
+          <div class="regime-name" id="regimeName">--</div>
+          <div id="convictionBadge" style="display:none; margin: 8px auto; padding: 6px 20px; border-radius: 8px; font-family: var(--font-mono); font-size: 14px; font-weight: 600; width: fit-content;"></div>
+          <div class="regime-conf"><strong id="regimeConf">--</strong> confidence</div>
         </div>
-        <div>
-          <div class="chart-container" style="height: 240px;">
-            <canvas id="allocChart"></canvas>
-          </div>
+        <div id="probBars" style="padding: 0 20px 10px;"></div>
+      </div>
+      <!-- Forecasts -->
+      <div class="card">
+        <div class="card-header">Regime Forecasts — 1 / 3 / 6 Month <span class="card-badge" style="background: rgba(32,192,224,0.15); color: var(--accent-cyan);">HMM Transition</span></div>
+        <table class="forecast-table">
+          <thead><tr><th>Regime</th><th>Now</th><th>1M</th><th>3M</th><th>6M</th></tr></thead>
+          <tbody id="forecastBody"></tbody>
+        </table>
+        <div class="chart-container chart-sm" style="margin-top: 16px;">
+          <canvas id="forecastChart"></canvas>
         </div>
       </div>
-      <div style="margin-top: 16px;">
-        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Top Ticker Weights</div>
-        <div id="tickerAlloc" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;"></div>
-      </div>
     </div>
-
-    <!-- Model Confidence + Disagreement -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Model Confidence & Disagreement</span>
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span style="font-size: 12px; color: var(--text-secondary);">Overall Confidence</span>
-          <span id="confValue" style="font-family: 'IBM Plex Mono'; font-size: 14px; font-weight: 700;">—</span>
+    <div>
+      <!-- Alerts -->
+      <div class="card">
+        <div class="card-header">Alerts & Warnings <span class="card-badge" id="alertCount" style="background: rgba(240,72,72,0.15); color: var(--accent-red);">0</span></div>
+        <div id="alertsList">
+          <div style="color: var(--text-muted); font-size: 15px; padding: 20px 0; text-align: center;">No active alerts - all clear</div>
         </div>
-        <div class="confidence-meter"><div class="confidence-fill" id="confFill"></div></div>
       </div>
-
-      <div style="margin-bottom: 20px;">
-        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Individual Model Votes</div>
-        <div id="modelVotes"></div>
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Ensemble Weights</div>
-        <div id="ensembleWeights"></div>
-      </div>
-
-      <div>
-        <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Top Features (XGBoost)</div>
-        <div id="featureImportance"></div>
+      <!-- Nowcast (live) -->
+      <div class="card">
+        <div class="card-header">Real-Time Nowcast (XGBoost) <span class="card-badge" id="nowcastBadge" style="background: rgba(32,192,224,0.15); color: var(--accent-cyan);">Loading...</span></div>
+        <div id="nowcastContent">
+          <div style="text-align: center; padding: 16px; color: var(--text-muted);">Fetching real-time data...</div>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- ═══ Row 3: Regime Timeline ═══ -->
-  <div class="grid-full">
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIEW 2: PORTFOLIO & ALLOCATIONS                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-portfolio" class="tab-content">
+  <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Historical Regime Timeline</span>
-        <span class="card-badge" id="timelineRange">—</span>
+      <div class="card-header">Recommended Allocation — Probability Weighted <span class="card-badge" style="background: rgba(45,212,168,0.15); color: var(--accent-green);">Blended</span></div>
+      <div id="allocList"></div>
+      <div class="chart-container chart-md" style="margin-top: 16px;">
+        <canvas id="allocChart"></canvas>
       </div>
-      <div class="chart-container chart-container-tall">
-        <canvas id="timelineChart"></canvas>
-      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Top Ticker Weights</div>
+      <div class="ticker-grid" id="tickerAlloc"></div>
     </div>
   </div>
+</div>
 
-  <!-- ═══ Row 4: Transition Matrix + Backtest ═══ -->
-  <div class="grid-middle">
-
-    <!-- Transition Matrix -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Regime Transition Probability Matrix</span>
-        <span class="card-badge">Monthly</span>
-      </div>
-      <div id="transitionMatrix"><div class="no-data">Loading...</div></div>
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIEW 3: HISTORICAL ANALYSIS                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-history" class="tab-content">
+  <div class="card">
+    <div class="card-header">Historical Regime Timeline <span class="card-badge" id="timelineRange" style="background: rgba(64,144,240,0.15); color: var(--accent-blue);">--</span></div>
+    <div class="chart-container chart-xl">
+      <canvas id="timelineChart"></canvas>
     </div>
-
-    <!-- Backtest -->
+  </div>
+  <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">Walk-Forward Backtest Results</span>
-        <span class="card-badge" id="backtestMonths">—</span>
+      <div class="card-header">Regime Transition Probability Matrix <span class="card-badge" style="background: rgba(128,80,232,0.15); color: var(--accent-purple);">Monthly</span></div>
+      <div id="transitionMatrix"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Walk-Forward Backtest Results <span class="card-badge" id="backtestPeriod" style="background: rgba(32,192,224,0.15); color: var(--accent-cyan);">--</span></div>
+      <div class="grid-2" style="margin-bottom: 16px;">
+        <div class="stat-box">
+          <div class="stat-value" id="btReturn" style="color: var(--accent-green);">--</div>
+          <div class="stat-label">Annual Return</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="btSharpe" style="color: var(--accent-cyan);">--</div>
+          <div class="stat-label">Sharpe Ratio</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="btDrawdown" style="color: var(--accent-red);">--</div>
+          <div class="stat-label">Max Drawdown</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="btWinRate" style="color: var(--accent-amber);">--</div>
+          <div class="stat-label">Win Rate</div>
+        </div>
       </div>
-      <div id="backtestStats" class="stat-grid" style="margin-bottom: 16px;"></div>
-      <div class="chart-container" style="height: 220px;">
+      <div class="chart-container chart-sm">
         <canvas id="backtestChart"></canvas>
       </div>
     </div>
   </div>
-
 </div>
 
-<script>
-// ═══════════════════════════════════════════════════════════════════
-//  State & Config
-// ═══════════════════════════════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIEW 4: MODEL DIAGNOSTICS                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-diagnostics" class="tab-content">
+  <div class="grid-2">
+    <!-- Individual model votes -->
+    <div class="card">
+      <div class="card-header">Individual Model Predictions</div>
+      <div id="modelVotes"></div>
+      <div style="margin-top: 20px;">
+        <div class="card-header" style="margin-bottom: 12px;">Overall Confidence</div>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="flex: 1; height: 28px; background: var(--bg-input); border-radius: 6px; overflow: hidden;">
+            <div id="confFill" style="height: 100%; border-radius: 6px; background: var(--accent-green); transition: width 0.6s;"></div>
+          </div>
+          <span id="confValue" style="font-family: var(--font-mono); font-size: 18px; font-weight: 700; min-width: 52px;">--</span>
+        </div>
+      </div>
+    </div>
 
+    <!-- Ensemble weight sliders -->
+    <div class="card">
+      <div class="card-header">Ensemble Weight Control <span class="card-badge" id="weightStatus" style="background: rgba(45,212,168,0.15); color: var(--accent-green);">Calibrated</span></div>
+      <div class="slider-group">
+        <div class="slider-header">
+          <span class="slider-label">XGBoost (Supervised ML)</span>
+          <span class="slider-value" id="xgbWeightVal">46%</span>
+        </div>
+        <input type="range" id="xgbSlider" min="0" max="100" value="46" oninput="onWeightSlider('xgb')">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header">
+          <span class="slider-label">HMM (Sequential)</span>
+          <span class="slider-value" id="hmmWeightVal">31%</span>
+        </div>
+        <input type="range" id="hmmSlider" min="0" max="100" value="31" oninput="onWeightSlider('hmm')">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header">
+          <span class="slider-label">GMM (Clustering)</span>
+          <span class="slider-value" id="gmmWeightVal">23%</span>
+        </div>
+        <input type="range" id="gmmSlider" min="0" max="100" value="23" oninput="onWeightSlider('gmm')">
+      </div>
+      <div style="font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 4px;">
+        Total: <strong id="weightTotal" style="color: var(--text-primary);">100%</strong> (must sum to 100%)
+      </div>
+      <div class="freeze-bar">
+        <button class="btn" onclick="resetWeights()" style="flex:1;">Reset to Calibrated</button>
+        <button class="btn btn-primary" onclick="freezeWeights()" style="flex:1;">Freeze for Predictions</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Confidence caps -->
+    <div class="card">
+      <div class="card-header">Confidence Caps</div>
+      <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+        Caps prevent unsupervised models from being overconfident. Lower cap = more influence for XGBoost.
+      </p>
+      <div class="cap-group">
+        <div class="slider-header">
+          <span class="slider-label">HMM Confidence Cap</span>
+          <span class="slider-value" id="hmmCapVal">80%</span>
+        </div>
+        <input type="range" id="hmmCapSlider" min="50" max="100" value="80" oninput="onCapSlider()">
+      </div>
+      <div class="cap-group">
+        <div class="slider-header">
+          <span class="slider-label">GMM Confidence Cap</span>
+          <span class="slider-value" id="gmmCapVal">85%</span>
+        </div>
+        <input type="range" id="gmmCapSlider" min="50" max="100" value="85" oninput="onCapSlider()">
+      </div>
+      <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">
+        Note: Cap changes require retrain to take effect.
+      </div>
+    </div>
+
+    <!-- Feature importance -->
+    <div class="card">
+      <div class="card-header">XGBoost Feature Importance (Top 10)</div>
+      <div id="featureImportance"></div>
+    </div>
+  </div>
+
+  <!-- Ensemble weights display -->
+  <div class="card">
+    <div class="card-header">Current Calibrated Weights (from Time-Series Cross-Validation)</div>
+    <div class="grid-3" id="ensembleWeightsDisplay"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
 const REGIME_COLORS = {
-  'Expansion': '#22c55e',
-  'Slowdown': '#f59e0b',
-  'Contraction': '#ef4444',
-  'Recovery': '#3b82f6',
-  'Crisis': '#7c3aed',
+  'Expansion': '#2dd4a8',
+  'Slowdown': '#f0a030',
+  'Contraction': '#f04848',
+  'Recovery': '#4090f0',
+  'Crisis': '#8050e8',
 };
 
-let charts = {};
-let refreshTimer = null;
+const charts = {};
+let reportData = null;
+let calibratedWeights = {};
+let lastSliderSource = null;
 
-// ═══════════════════════════════════════════════════════════════════
-//  Data Fetching
-// ═══════════════════════════════════════════════════════════════════
+// ─── Tab switching ───
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  event.target.classList.add('active');
+  // Resize charts when tab becomes visible
+  setTimeout(() => { Object.values(charts).forEach(c => c && c.resize && c.resize()); }, 50);
+}
 
-async function fetchJSON(endpoint) {
-  try {
-    const resp = await fetch(endpoint);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return await resp.json();
-  } catch (e) {
-    console.error(`Failed to fetch ${endpoint}:`, e);
-    return null;
+// ─── Weight sliders ───
+function onWeightSlider(source) {
+  lastSliderSource = source;
+  const xgb = parseInt(document.getElementById('xgbSlider').value);
+  const hmm = parseInt(document.getElementById('hmmSlider').value);
+  const gmm = parseInt(document.getElementById('gmmSlider').value);
+  const total = xgb + hmm + gmm;
+
+  // Auto-adjust others to sum to 100
+  if (total !== 100) {
+    const diff = 100 - (source === 'xgb' ? xgb : source === 'hmm' ? hmm : gmm);
+    if (source === 'xgb') {
+      const ratio = hmm + gmm > 0 ? diff / (hmm + gmm) : 0.5;
+      document.getElementById('hmmSlider').value = Math.round(hmm * ratio);
+      document.getElementById('gmmSlider').value = diff - Math.round(hmm * ratio);
+    } else if (source === 'hmm') {
+      const ratio = xgb + gmm > 0 ? diff / (xgb + gmm) : 0.5;
+      document.getElementById('xgbSlider').value = Math.round(xgb * ratio);
+      document.getElementById('gmmSlider').value = diff - Math.round(xgb * ratio);
+    } else {
+      const ratio = xgb + hmm > 0 ? diff / (xgb + hmm) : 0.5;
+      document.getElementById('xgbSlider').value = Math.round(xgb * ratio);
+      document.getElementById('hmmSlider').value = diff - Math.round(xgb * ratio);
+    }
+  }
+
+  updateWeightDisplay();
+}
+
+function updateWeightDisplay() {
+  const xgb = parseInt(document.getElementById('xgbSlider').value);
+  const hmm = parseInt(document.getElementById('hmmSlider').value);
+  const gmm = parseInt(document.getElementById('gmmSlider').value);
+  document.getElementById('xgbWeightVal').textContent = xgb + '%';
+  document.getElementById('hmmWeightVal').textContent = hmm + '%';
+  document.getElementById('gmmWeightVal').textContent = gmm + '%';
+  document.getElementById('weightTotal').textContent = (xgb + hmm + gmm) + '%';
+
+  // Check if weights match calibrated
+  const isCalibrated = calibratedWeights.xgb &&
+    Math.abs(xgb - Math.round(calibratedWeights.xgb * 100)) < 2 &&
+    Math.abs(hmm - Math.round(calibratedWeights.hmm * 100)) < 2;
+  const badge = document.getElementById('weightStatus');
+  if (isCalibrated) {
+    badge.textContent = 'Calibrated';
+    badge.style.background = 'rgba(45,212,168,0.15)';
+    badge.style.color = 'var(--accent-green)';
+  } else {
+    badge.textContent = 'Custom';
+    badge.style.background = 'rgba(240,160,48,0.15)';
+    badge.style.color = 'var(--accent-amber)';
   }
 }
 
-async function loadDashboard() {
-  const report = await fetchJSON('/api/report');
-  if (!report) {
-    document.getElementById('statusText').textContent = 'Error — retrying...';
-    document.getElementById('statusDot').style.background = 'var(--accent-red)';
-    setTimeout(loadDashboard, 5000);
-    return;
+function resetWeights() {
+  if (calibratedWeights.xgb) {
+    document.getElementById('xgbSlider').value = Math.round(calibratedWeights.xgb * 100);
+    document.getElementById('hmmSlider').value = Math.round(calibratedWeights.hmm * 100);
+    document.getElementById('gmmSlider').value = Math.round(calibratedWeights.gmm * 100);
+    updateWeightDisplay();
   }
+}
 
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('statusText').textContent = 'Live';
-  document.getElementById('statusDot').style.background = 'var(--accent-green)';
+function freezeWeights() {
+  const xgb = parseInt(document.getElementById('xgbSlider').value) / 100;
+  const hmm = parseInt(document.getElementById('hmmSlider').value) / 100;
+  const gmm = parseInt(document.getElementById('gmmSlider').value) / 100;
+  alert(`Weights frozen:\nXGBoost: ${(xgb*100).toFixed(0)}%\nHMM: ${(hmm*100).toFixed(0)}%\nGMM: ${(gmm*100).toFixed(0)}%\n\nNote: This feature will be connected to the backend in a future update.`);
+}
 
-  if (report.last_run) {
-    const dt = new Date(report.last_run);
-    document.getElementById('lastUpdate').textContent = dt.toLocaleString();
+function onCapSlider() {
+  document.getElementById('hmmCapVal').textContent = document.getElementById('hmmCapSlider').value + '%';
+  document.getElementById('gmmCapVal').textContent = document.getElementById('gmmCapSlider').value + '%';
+}
+
+// ─── API calls ───
+async function fetchReport() {
+  try {
+    const resp = await fetch('/api/report');
+    reportData = await resp.json();
+    renderAll(reportData);
+  } catch (e) {
+    console.error('Failed to fetch report:', e);
   }
+}
 
-  const econ = report.managers?.['Economic Regime Manager'] || {};
+async function refreshData() {
+  try { await fetch('/api/refresh', { method: 'POST' }); setTimeout(fetchReport, 3000); }
+  catch (e) { console.error(e); }
+}
+
+async function retrain() {
+  try { await fetch('/api/retrain', { method: 'POST' }); alert('Retrain started. This may take 1-2 minutes.'); }
+  catch (e) { console.error(e); }
+}
+
+// ─── Render everything ───
+function renderAll(data) {
+  const econ = data.managers?.['Economic Regime Manager'] || {};
+  document.getElementById('lastRun').textContent = data.last_run ? new Date(data.last_run).toLocaleString() : '--';
 
   renderRegime(econ);
   renderForecasts(econ);
-  renderAlerts(report.alerts || []);
+  renderAlerts(data.alerts || []);
   renderAllocations(econ);
   renderConfidence(econ);
   renderTimeline(econ);
   renderTransitionMatrix(econ);
-  renderBacktest(report.backtest);
+  renderBacktest(data.backtest || {});
+  renderFeatureImportance(econ);
+  renderEnsembleWeights(econ);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  Render Functions
-// ═══════════════════════════════════════════════════════════════════
-
 function renderRegime(econ) {
-  const regime = econ.current_regime || '—';
-  const probs = econ.regime_probabilities || {};
+  const regime = econ.current_regime || '--';
   const conf = econ.confidence || 0;
+  const probs = econ.regime_probabilities || {};
 
-  document.getElementById('regimeLabel').textContent = regime;
-  document.getElementById('regimeLabel').style.color = REGIME_COLORS[regime] || '#fff';
-  document.getElementById('regimeProb').textContent = `${(probs[regime] * 100 || 0).toFixed(1)}% probability`;
-  document.getElementById('regimeConfBadge').textContent = `${(conf * 100).toFixed(0)}% conf`;
+  // Sort probabilities to find top two
+  const sorted = Object.entries(probs).sort((a, b) => b[1] - a[1]);
+  const top1 = sorted[0] || ['--', 0];
+  const top2 = sorted[1] || ['--', 0];
+  const gap = top1[1] - top2[1];
 
-  const barsHtml = Object.entries(probs)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, prob]) => `
-      <div class="regime-bar-row">
-        <div class="regime-bar-label">${name}</div>
-        <div class="regime-bar-track">
-          <div class="regime-bar-fill" style="width: ${prob * 100}%; background: ${REGIME_COLORS[name]}">
-            <span class="regime-bar-value">${(prob * 100).toFixed(1)}%</span>
-          </div>
-        </div>
+  const nameEl = document.getElementById('regimeName');
+  const confEl = document.getElementById('regimeConf');
+  const badgeEl = document.getElementById('convictionBadge');
+
+  // Conviction framework:
+  // > 65% top regime = High Conviction
+  // 50-65% = Low Conviction
+  // < 50% or gap < 5% = Regime Transition
+  if (top1[1] >= 0.65) {
+    // HIGH CONVICTION
+    nameEl.textContent = top1[0];
+    nameEl.style.color = REGIME_COLORS[top1[0]] || '#fff';
+    nameEl.style.fontSize = '52px';
+    badgeEl.style.display = 'block';
+    badgeEl.textContent = 'HIGH CONVICTION';
+    badgeEl.style.background = 'rgba(45,212,168,0.15)';
+    badgeEl.style.color = 'var(--accent-green)';
+    confEl.textContent = (top1[1] * 100).toFixed(0) + '%';
+  } else if (top1[1] >= 0.50 && gap >= 0.05) {
+    // LOW CONVICTION
+    nameEl.textContent = top1[0];
+    nameEl.style.color = REGIME_COLORS[top1[0]] || '#fff';
+    nameEl.style.fontSize = '52px';
+    badgeEl.style.display = 'block';
+    badgeEl.textContent = 'LOW CONVICTION';
+    badgeEl.style.background = 'rgba(240,160,48,0.15)';
+    badgeEl.style.color = 'var(--accent-amber)';
+    confEl.textContent = (top1[1] * 100).toFixed(0) + '%';
+  } else {
+    // REGIME TRANSITION
+    nameEl.innerHTML = `<span style="color:${REGIME_COLORS[top1[0]]||'#fff'}">${top1[0]}</span> <span style="color:var(--text-muted);font-size:32px;">\u2194</span> <span style="color:${REGIME_COLORS[top2[0]]||'#fff'}">${top2[0]}</span>`;
+    nameEl.style.fontSize = '36px';
+    nameEl.style.color = '';
+    badgeEl.style.display = 'block';
+    badgeEl.textContent = 'REGIME TRANSITION';
+    badgeEl.style.background = 'rgba(240,72,72,0.15)';
+    badgeEl.style.color = 'var(--accent-red)';
+    confEl.textContent = `${(top1[1]*100).toFixed(0)}% / ${(top2[1]*100).toFixed(0)}%`;
+  }
+
+  const barsHtml = Object.entries(probs).map(([name, prob]) => `
+    <div class="prob-row">
+      <span class="prob-label">${name}</span>
+      <div class="prob-bar-bg">
+        <div class="prob-bar-fill" style="width: ${(prob * 100).toFixed(1)}%; background: ${REGIME_COLORS[name]}40;"></div>
       </div>
-    `).join('');
-  document.getElementById('regimeBars').innerHTML = barsHtml;
+      <span class="prob-value" style="color: ${REGIME_COLORS[name]}">${(prob * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+  document.getElementById('probBars').innerHTML = barsHtml;
 }
 
 function renderForecasts(econ) {
   const forecasts = econ.forecasts || {};
+  const probs = econ.regime_probabilities || {};
   const regimes = ['Expansion', 'Slowdown', 'Contraction', 'Recovery', 'Crisis'];
 
-  // Table
-  let html = '<table class="forecast-grid"><thead><tr><th>Regime</th><th>Now</th>';
-  const horizons = Object.keys(forecasts).sort();
-  horizons.forEach(h => { html += `<th>${h}</th>`; });
-  html += '</tr></thead><tbody>';
-
-  const currentProbs = econ.regime_probabilities || {};
+  let html = '';
   regimes.forEach(r => {
-    html += `<tr><td style="color: ${REGIME_COLORS[r]}">${r}</td>`;
-    const nowVal = currentProbs[r] || 0;
-    html += `<td><span class="prob-cell" style="background: ${REGIME_COLORS[r]}20; color: ${REGIME_COLORS[r]}">${(nowVal * 100).toFixed(1)}%</span></td>`;
-    horizons.forEach(h => {
-      const val = forecasts[h]?.[r] || 0;
-      const opacity = Math.max(0.15, val);
-      html += `<td><span class="prob-cell" style="background: ${REGIME_COLORS[r]}${Math.round(opacity * 40).toString(16).padStart(2, '0')}; color: ${REGIME_COLORS[r]}">${(val * 100).toFixed(1)}%</span></td>`;
-    });
-    html += '</tr>';
+    const now = probs[r] || 0;
+    const m1 = forecasts['1m']?.[r] || 0;
+    const m3 = forecasts['3m']?.[r] || 0;
+    const m6 = forecasts['6m']?.[r] || 0;
+    html += `<tr>
+      <td style="color: ${REGIME_COLORS[r]}; font-weight: 700;">${r}</td>
+      <td>${(now*100).toFixed(1)}%</td>
+      <td>${(m1*100).toFixed(1)}%</td>
+      <td>${(m3*100).toFixed(1)}%</td>
+      <td>${(m6*100).toFixed(1)}%</td>
+    </tr>`;
   });
-  html += '</tbody></table>';
-  document.getElementById('forecastTable').innerHTML = html;
+  document.getElementById('forecastBody').innerHTML = html;
 
-  // Chart
-  if (charts.forecast) charts.forecast.destroy();
-  const labels = ['Now', ...horizons];
+  // Forecast line chart
+  const labels = ['Now', '1M', '3M', '6M'];
   const datasets = regimes.map(r => ({
     label: r,
-    data: [currentProbs[r] || 0, ...horizons.map(h => forecasts[h]?.[r] || 0)],
+    data: [probs[r]||0, forecasts['1m']?.[r]||0, forecasts['3m']?.[r]||0, forecasts['6m']?.[r]||0].map(v => (v*100).toFixed(1)),
     borderColor: REGIME_COLORS[r],
     backgroundColor: REGIME_COLORS[r] + '20',
-    borderWidth: 2,
-    fill: true,
-    tension: 0.3,
+    borderWidth: 2.5,
     pointRadius: 4,
+    tension: 0.3,
+    fill: false,
   }));
-
+  if (charts.forecast) charts.forecast.destroy();
   charts.forecast = new Chart(document.getElementById('forecastChart'), {
     type: 'line',
     data: { labels, datasets },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        y: { min: 0, max: 1, ticks: { callback: v => (v*100)+'%', color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { color: '#1e293b' } },
-        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: '#586580', font: { family: 'JetBrains Mono', size: 12 } }, grid: { color: '#1c2840' } },
+        y: { ticks: { color: '#586580', font: { family: 'JetBrains Mono', size: 11 }, callback: v => v + '%' }, grid: { color: '#1c2840' }, min: 0 },
       },
     },
   });
@@ -849,156 +973,128 @@ function renderForecasts(econ) {
 
 function renderAlerts(alerts) {
   document.getElementById('alertCount').textContent = alerts.length;
-  if (alerts.length === 0) {
-    document.getElementById('alertList').innerHTML = '<div class="no-data">No active alerts — all clear</div>';
+  if (!alerts.length) {
+    document.getElementById('alertsList').innerHTML = '<div style="color: var(--text-muted); font-size: 15px; padding: 20px 0; text-align: center;">No active alerts - all clear</div>';
     return;
   }
-
   const html = alerts.map(a => {
-    const cls = a.severity === 'critical' ? 'alert-critical' : a.severity === 'warning' ? 'alert-warning' : 'alert-info';
-    const sevColor = a.severity === 'critical' ? 'var(--accent-red)' : a.severity === 'warning' ? 'var(--accent-amber)' : 'var(--accent-blue)';
-    return `
-      <div class="alert-item ${cls}">
-        <div class="alert-severity" style="color: ${sevColor}">${a.severity}</div>
-        <div class="alert-title">${a.title}</div>
-        <div class="alert-message">${a.message}</div>
-      </div>
-    `;
+    const cls = a.severity === 'CRITICAL' ? 'alert-critical' : a.severity === 'WARNING' ? 'alert-warning' : 'alert-info';
+    return `<div class="alert-item ${cls}"><div class="alert-title">${a.title || a.type}</div><div class="alert-desc">${a.message || ''}</div></div>`;
   }).join('');
-  document.getElementById('alertList').innerHTML = html;
+  document.getElementById('alertsList').innerHTML = html;
 }
 
 function renderAllocations(econ) {
-  const acAlloc = econ.asset_class_allocation || {};
+  const assetAlloc = econ.asset_class_allocation || {};
   const tickerAlloc = econ.ticker_allocation || {};
 
   // Asset class list
-  const acHtml = Object.entries(acAlloc)
+  const allocHtml = Object.entries(assetAlloc)
     .sort((a, b) => b[1] - a[1])
-    .map(([name, w]) => `
+    .map(([name, weight]) => `
       <div class="alloc-row">
         <span class="alloc-name">${name}</span>
-        <span class="alloc-weight">${(w * 100).toFixed(1)}%</span>
+        <span class="alloc-weight">${(weight * 100).toFixed(1)}%</span>
       </div>
     `).join('');
-  document.getElementById('assetClassAlloc').innerHTML = acHtml;
+  document.getElementById('allocList').innerHTML = allocHtml;
 
   // Doughnut chart
+  const entries = Object.entries(assetAlloc).sort((a, b) => b[1] - a[1]);
+  const colors = ['#2dd4a8', '#4090f0', '#8050e8', '#f0a030', '#f04848', '#20c0e0'];
   if (charts.alloc) charts.alloc.destroy();
-  const acEntries = Object.entries(acAlloc).sort((a, b) => b[1] - a[1]);
-  const acColors = ['#22c55e', '#3b82f6', '#f59e0b', '#7c3aed', '#06b6d4', '#ef4444'];
   charts.alloc = new Chart(document.getElementById('allocChart'), {
     type: 'doughnut',
     data: {
-      labels: acEntries.map(e => e[0]),
-      datasets: [{
-        data: acEntries.map(e => (e[1] * 100).toFixed(1)),
-        backgroundColor: acColors.slice(0, acEntries.length),
-        borderWidth: 0,
-      }],
+      labels: entries.map(e => e[0]),
+      datasets: [{ data: entries.map(e => (e[1]*100).toFixed(1)), backgroundColor: colors.slice(0, entries.length), borderWidth: 0 }],
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '65%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 }, padding: 8, boxWidth: 12 },
-        },
-      },
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 12 }, padding: 12, boxWidth: 14 } } },
     },
   });
 
-  // Top tickers
-  const topTickers = Object.entries(tickerAlloc)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 15);
+  // Ticker table
+  const topTickers = Object.entries(tickerAlloc).sort((a, b) => b[1] - a[1]).slice(0, 15);
   const tickerHtml = topTickers.map(([t, w]) => `
-    <div style="display: flex; justify-content: space-between; padding: 3px 0; font-family: 'IBM Plex Mono'; font-size: 11px;">
-      <span style="color: var(--text-muted)">${t}</span>
-      <span style="color: var(--text-primary); font-weight: 600;">${(w * 100).toFixed(1)}%</span>
-    </div>
+    <div class="ticker-row"><span class="ticker-name">${t}</span><span class="ticker-weight">${(w*100).toFixed(1)}%</span></div>
   `).join('');
   document.getElementById('tickerAlloc').innerHTML = tickerHtml;
 }
 
 function renderConfidence(econ) {
   const conf = econ.confidence || 0;
-  const agreement = econ.model_agreement || 0;
   const models = econ.individual_models || {};
   const weights = econ.ensemble_weights || {};
-  const featImp = econ.feature_importance || {};
 
-  // Confidence meter
   document.getElementById('confValue').textContent = (conf * 100).toFixed(0) + '%';
-  const fillColor = conf > 0.7 ? 'var(--accent-green)' : conf > 0.4 ? 'var(--accent-amber)' : 'var(--accent-red)';
-  const fillEl = document.getElementById('confFill');
-  fillEl.style.width = (conf * 100) + '%';
-  fillEl.style.background = fillColor;
+  const fill = document.getElementById('confFill');
+  fill.style.width = (conf * 100) + '%';
+  fill.style.background = conf > 0.7 ? 'var(--accent-green)' : conf > 0.4 ? 'var(--accent-amber)' : 'var(--accent-red)';
 
   // Model votes
   const votesHtml = Object.entries(models).map(([name, regime]) => `
-    <div class="model-vote">
-      <span class="model-name">${name.toUpperCase()}</span>
-      <span class="model-regime" style="background: ${REGIME_COLORS[regime]}20; color: ${REGIME_COLORS[regime]}">${regime}</span>
+    <div class="model-vote-row">
+      <span class="model-vote-name">${name.toUpperCase()}</span>
+      <span class="model-vote-regime" style="background: ${REGIME_COLORS[regime]}18; color: ${REGIME_COLORS[regime]}">${regime}</span>
     </div>
   `).join('');
   document.getElementById('modelVotes').innerHTML = votesHtml;
 
-  // Ensemble weights
-  const weightsHtml = Object.entries(weights).map(([name, w]) => `
-    <div style="display: flex; justify-content: space-between; padding: 4px 0; font-family: 'IBM Plex Mono'; font-size: 11px;">
-      <span style="color: var(--text-muted)">${name.toUpperCase()}</span>
-      <span style="color: var(--accent-cyan); font-weight: 600;">${(w * 100).toFixed(1)}%</span>
-    </div>
-  `).join('');
-  document.getElementById('ensembleWeights').innerHTML = weightsHtml;
+  // Store calibrated weights and set sliders
+  calibratedWeights = weights;
+  if (weights.xgb) {
+    document.getElementById('xgbSlider').value = Math.round(weights.xgb * 100);
+    document.getElementById('hmmSlider').value = Math.round(weights.hmm * 100);
+    document.getElementById('gmmSlider').value = Math.round(weights.gmm * 100);
+    updateWeightDisplay();
+  }
+}
 
-  // Feature importance
-  const featEntries = Object.entries(featImp).slice(0, 10);
-  const maxImp = Math.max(...featEntries.map(e => e[1]), 0.01);
-  const featHtml = featEntries.map(([name, val]) => `
+function renderFeatureImportance(econ) {
+  const featImp = econ.feature_importance || {};
+  const entries = Object.entries(featImp).slice(0, 10);
+  const maxImp = Math.max(...entries.map(e => e[1]), 0.01);
+  const html = entries.map(([name, val]) => `
     <div class="feat-row">
       <div class="feat-name">${name}</div>
-      <div class="feat-bar">
-        <div class="feat-bar-fill" style="width: ${(val / maxImp) * 100}%"></div>
-      </div>
+      <div class="feat-bar"><div class="feat-bar-fill" style="width: ${(val/maxImp)*100}%"></div></div>
     </div>
   `).join('');
-  document.getElementById('featureImportance').innerHTML = featHtml;
+  document.getElementById('featureImportance').innerHTML = html;
+}
+
+function renderEnsembleWeights(econ) {
+  const weights = econ.ensemble_weights || {};
+  const html = Object.entries(weights).map(([name, w]) => `
+    <div class="stat-box">
+      <div class="stat-value" style="color: var(--accent-cyan); font-size: 28px;">${(w*100).toFixed(1)}%</div>
+      <div class="stat-label">${name.toUpperCase()}</div>
+    </div>
+  `).join('');
+  document.getElementById('ensembleWeightsDisplay').innerHTML = html;
 }
 
 function renderTimeline(econ) {
   const history = econ.regime_history;
-  if (!history || !history.dates) {
-    document.getElementById('timelineRange').textContent = 'No data';
-    return;
-  }
+  if (!history || !history.dates) { document.getElementById('timelineRange').textContent = 'No data'; return; }
 
   const dates = history.dates;
   const regimes = history.regimes;
-  document.getElementById('timelineRange').textContent = `${dates[0]?.slice(0, 7)} → ${dates[dates.length-1]?.slice(0, 7)}`;
+  document.getElementById('timelineRange').textContent = `${dates[0]?.slice(0,7)} -> ${dates[dates.length-1]?.slice(0,7)}`;
 
-  // Downsample if too many points
-  const maxPoints = 600;
+  const maxPoints = 700;
   const step = Math.max(1, Math.floor(dates.length / maxPoints));
-  const sampledDates = [];
-  const sampledRegimes = [];
-  for (let i = 0; i < dates.length; i += step) {
-    sampledDates.push(dates[i]);
-    sampledRegimes.push(regimes[i]);
-  }
+  const sd = [], sr = [];
+  for (let i = 0; i < dates.length; i += step) { sd.push(dates[i]); sr.push(regimes[i]); }
 
   const regimeNames = ['Expansion', 'Slowdown', 'Contraction', 'Recovery', 'Crisis'];
-  const colors = regimeNames.map(r => REGIME_COLORS[r]);
-
-  // Build datasets for each regime (stacked area-like)
   const datasets = regimeNames.map((name, idx) => ({
     label: name,
-    data: sampledRegimes.map(r => r === idx ? 1 : 0),
-    backgroundColor: colors[idx] + 'CC',
-    borderColor: colors[idx],
+    data: sr.map(r => r === idx ? 1 : 0),
+    backgroundColor: REGIME_COLORS[name] + 'CC',
+    borderColor: REGIME_COLORS[name],
     borderWidth: 0,
     barPercentage: 1.0,
     categoryPercentage: 1.0,
@@ -1007,41 +1103,16 @@ function renderTimeline(econ) {
   if (charts.timeline) charts.timeline.destroy();
   charts.timeline = new Chart(document.getElementById('timelineChart'), {
     type: 'bar',
-    data: {
-      labels: sampledDates.map(d => d.slice(0, 7)),
-      datasets,
-    },
+    data: { labels: sd.map(d => d.slice(0,7)), datasets },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'top',
-          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 }, padding: 12, boxWidth: 12 },
-        },
-        tooltip: {
-          callbacks: {
-            title: (items) => items[0]?.label || '',
-            label: (item) => item.dataset.label,
-          }
-        }
+        legend: { position: 'top', labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 13 }, padding: 16, boxWidth: 14 } },
+        tooltip: { callbacks: { title: items => items[0]?.label || '', label: item => item.dataset.label } },
       },
       scales: {
-        x: {
-          stacked: true,
-          ticks: {
-            color: '#64748b',
-            font: { family: 'IBM Plex Mono', size: 9 },
-            maxTicksLimit: 20,
-            maxRotation: 45,
-          },
-          grid: { display: false },
-        },
-        y: {
-          stacked: true,
-          display: false,
-          max: 1,
-        },
+        x: { stacked: true, ticks: { color: '#586580', font: { family: 'JetBrains Mono', size: 11 }, maxTicksLimit: 24, maxRotation: 45 }, grid: { display: false } },
+        y: { stacked: true, display: false, max: 1 },
       },
     },
   });
@@ -1049,23 +1120,20 @@ function renderTimeline(econ) {
 
 function renderTransitionMatrix(econ) {
   const matrix = econ.transition_matrix;
-  if (!matrix) {
-    document.getElementById('transitionMatrix').innerHTML = '<div class="no-data">Not available</div>';
-    return;
-  }
+  if (!matrix) { document.getElementById('transitionMatrix').innerHTML = '<div style="color:var(--text-muted)">No data</div>'; return; }
 
-  const regimes = Object.keys(matrix);
-  let html = '<table class="matrix-table"><thead><tr><th>From ↓ / To →</th>';
-  regimes.forEach(r => { html += `<th style="color: ${REGIME_COLORS[r]}">${r.slice(0, 5)}</th>`; });
+  const labels = ['Expansion', 'Slowdown', 'Contraction', 'Recovery', 'Crisis'];
+  const short = ['Expan', 'Slow', 'Contr', 'Recov', 'Crisis'];
+  let html = '<table class="matrix-table"><thead><tr><th>From / To</th>';
+  short.forEach(s => html += `<th>${s}</th>`);
   html += '</tr></thead><tbody>';
-
-  regimes.forEach(from => {
-    html += `<tr><td style="color: ${REGIME_COLORS[from]}; font-weight: 600; text-align: left;">${from}</td>`;
-    regimes.forEach(to => {
+  labels.forEach((from, i) => {
+    html += `<tr><td style="color: ${REGIME_COLORS[from]}; font-weight: 700; text-align: left;">${from}</td>`;
+    labels.forEach((to, j) => {
       const val = matrix[from]?.[to] || 0;
-      const intensity = Math.round(val * 255);
-      const bg = val > 0.5 ? `rgba(6, 182, 212, ${val * 0.6})` : `rgba(255, 255, 255, ${val * 0.15})`;
-      html += `<td><span class="matrix-cell" style="background: ${bg}">${(val * 100).toFixed(1)}%</span></td>`;
+      const pct = (val * 100).toFixed(1);
+      const bg = val > 0.5 ? `${REGIME_COLORS[from]}30` : val > 0.1 ? `${REGIME_COLORS[from]}15` : 'transparent';
+      html += `<td style="background: ${bg}; font-weight: ${val > 0.5 ? 700 : 400};">${pct}%</td>`;
     });
     html += '</tr>';
   });
@@ -1075,120 +1143,145 @@ function renderTransitionMatrix(econ) {
 
 function renderBacktest(bt) {
   if (!bt || bt.error) {
-    document.getElementById('backtestStats').innerHTML = '<div class="no-data">Backtest not available</div>';
+    document.getElementById('btReturn').textContent = '--';
+    document.getElementById('btSharpe').textContent = '--';
+    document.getElementById('btDrawdown').textContent = '--';
+    document.getElementById('btWinRate').textContent = '--';
     return;
   }
-
   const stats = bt.strategy_stats || {};
-  const bmStats = bt.benchmark_stats || {};
+  document.getElementById('btReturn').textContent = ((stats.annual_return||0)*100).toFixed(1) + '%';
+  document.getElementById('btSharpe').textContent = (stats.sharpe_ratio||0).toFixed(2);
+  document.getElementById('btDrawdown').textContent = ((stats.max_drawdown||0)*100).toFixed(1) + '%';
+  document.getElementById('btWinRate').textContent = ((stats.win_rate||0)*100).toFixed(0) + '%';
+  document.getElementById('backtestPeriod').textContent = (bt.n_months || '--') + ' months';
 
-  document.getElementById('backtestMonths').textContent = `${stats.n_months || 0} months`;
+  // Cumulative return chart
+  const cumReturns = bt.cumulative_returns || {};
+  const strat = cumReturns.strategy || [];
+  const bench = cumReturns.benchmark || [];
+  const dates = cumReturns.dates || [];
 
-  const statClass = v => v > 0 ? 'stat-positive' : v < 0 ? 'stat-negative' : 'stat-neutral';
-
-  document.getElementById('backtestStats').innerHTML = `
-    <div class="stat-item">
-      <div class="stat-label">Annual Return</div>
-      <div class="stat-value ${statClass(stats.annualized_return)}">${((stats.annualized_return || 0) * 100).toFixed(1)}%</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Sharpe Ratio</div>
-      <div class="stat-value ${statClass(stats.sharpe_ratio)}">${(stats.sharpe_ratio || 0).toFixed(2)}</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Max Drawdown</div>
-      <div class="stat-value stat-negative">${((stats.max_drawdown || 0) * 100).toFixed(1)}%</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Win Rate</div>
-      <div class="stat-value stat-neutral">${((stats.pct_positive_months || 0) * 100).toFixed(0)}%</div>
-    </div>
-  `;
-
-  // Cumulative returns chart
-  const stratData = bt.strategy_cumulative_returns;
-  const bmData = bt.benchmark_cumulative_returns;
-  if (!stratData?.dates) return;
-
-  if (charts.backtest) charts.backtest.destroy();
-  charts.backtest = new Chart(document.getElementById('backtestChart'), {
-    type: 'line',
-    data: {
-      labels: stratData.dates.map(d => d.slice(0, 7)),
-      datasets: [
-        {
-          label: 'Strategy',
-          data: stratData.values,
-          borderColor: '#06b6d4',
-          backgroundColor: '#06b6d420',
-          borderWidth: 2,
-          fill: true,
-          pointRadius: 0,
-        },
-        {
-          label: 'Benchmark',
-          data: bmData?.values || [],
-          borderColor: '#64748b',
-          borderWidth: 1.5,
-          borderDash: [4, 4],
-          fill: false,
-          pointRadius: 0,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: { color: '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 } },
+  if (strat.length && charts.backtest) charts.backtest.destroy();
+  if (strat.length) {
+    charts.backtest = new Chart(document.getElementById('backtestChart'), {
+      type: 'line',
+      data: {
+        labels: dates.map(d => d?.slice(0,7)),
+        datasets: [
+          { label: 'Strategy', data: strat, borderColor: '#20c0e0', borderWidth: 2, pointRadius: 0, fill: false },
+          { label: 'Benchmark', data: bench, borderColor: '#586580', borderWidth: 1.5, pointRadius: 0, borderDash: [4,4], fill: false },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 12 } } } },
+        scales: {
+          x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 8 }, grid: { display: false } },
+          y: { ticks: { color: '#586580', font: { size: 10 } }, grid: { color: '#1c2840' } },
         },
       },
-      scales: {
-        y: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } }, grid: { color: '#1e293b' } },
-        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
-      },
-    },
+    });
+  }
+}
+
+// ─── Nowcast ───
+async function fetchNowcast() {
+  try {
+    const resp = await fetch('/api/nowcast');
+    const data = await resp.json();
+    renderNowcast(data);
+  } catch (e) {
+    document.getElementById('nowcastContent').innerHTML =
+      '<div style="color:var(--accent-red);padding:16px;text-align:center;">Nowcast unavailable</div>';
+  }
+}
+
+function renderNowcast(nc) {
+  if (nc.error) {
+    document.getElementById('nowcastContent').innerHTML = `<div style="color:var(--accent-red);padding:16px;">${nc.error}</div>`;
+    return;
+  }
+  const color = REGIME_COLORS[nc.regime] || '#fff';
+  const fresh = nc.data_freshness || {};
+  const signals = nc.signals_firing || [];
+  const comp = nc.comparison || {};
+  const badge = document.getElementById('nowcastBadge');
+  badge.textContent = `${fresh.live_features || 0}/${fresh.total_features || 24} live`;
+  badge.style.background = fresh.freshness_pct > 50 ? 'rgba(45,212,168,0.15)' : 'rgba(240,160,48,0.15)';
+  badge.style.color = fresh.freshness_pct > 50 ? 'var(--accent-green)' : 'var(--accent-amber)';
+
+  let html = `<div style="text-align:center;margin-bottom:14px;">
+    <div style="font-family:var(--font-mono);font-size:32px;font-weight:700;color:${color};">${nc.regime}</div>
+    <div style="font-size:15px;color:var(--text-secondary);margin-top:4px;">${(nc.confidence*100).toFixed(0)}% confidence (XGBoost only)</div>
+  </div>`;
+
+  // Freshness bar
+  const pct = fresh.freshness_pct || 0;
+  html += `<div style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+      <span>Data Freshness</span>
+      <span style="font-family:var(--font-mono);">${fresh.live_features || 0} of ${fresh.total_features || 24} features live</span>
+    </div>
+    <div style="height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${pct > 50 ? 'var(--accent-green)' : 'var(--accent-amber)'};border-radius:4px;transition:width 0.4s;"></div>
+    </div>
+  </div>`;
+
+  // Divergence alert
+  if (comp.divergence) {
+    html += `<div style="background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;">
+      <strong style="color:var(--accent-amber);">Divergence Detected</strong><br>
+      <span style="color:var(--text-secondary);">Official model: <strong style="color:${REGIME_COLORS[comp.official_regime]||'#fff'}">${comp.official_regime}</strong> | Nowcast: <strong style="color:${REGIME_COLORS[comp.nowcast_regime]||'#fff'}">${comp.nowcast_regime}</strong></span>
+    </div>`;
+  } else if (comp.official_regime) {
+    html += `<div style="background:rgba(45,212,168,0.08);border:1px solid rgba(45,212,168,0.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;">
+      <strong style="color:var(--accent-green);">Confirmed</strong>
+      <span style="color:var(--text-secondary);"> — Nowcast agrees with official model: <strong style="color:${color}">${nc.regime}</strong></span>
+    </div>`;
+  }
+
+  // Nowcast probability bars
+  const probs = nc.probabilities || {};
+  const probEntries = Object.entries(probs).sort((a,b) => b[1] - a[1]);
+  html += '<div style="margin-bottom:10px;">';
+  probEntries.forEach(([name, prob]) => {
+    html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span style="font-family:var(--font-mono);font-size:12px;width:90px;color:var(--text-muted);">${name}</span>
+      <div style="flex:1;height:18px;background:var(--bg-input);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${(prob*100).toFixed(1)}%;background:${REGIME_COLORS[name]}50;border-radius:4px;"></div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;min-width:42px;text-align:right;color:${REGIME_COLORS[name]}">${(prob*100).toFixed(1)}%</span>
+    </div>`;
   });
+  html += '</div>';
+
+  // Signals firing
+  if (signals.length) {
+    html += '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">';
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600;">Signals Firing</div>';
+    signals.forEach(s => {
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
+        <div class="signal-dot signal-firing"></div>
+        <span style="color:var(--text-secondary);">${s}</span>
+      </div>`;
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">';
+    html += '<div style="font-size:13px;color:var(--text-muted);text-align:center;">No major warning signals detected</div>';
+    html += '</div>';
+  }
+
+  html += `<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;">Last updated: ${new Date(nc.timestamp).toLocaleString()} | Auto-refreshes every 15 min</div>`;
+  document.getElementById('nowcastContent').innerHTML = html;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  Actions
-// ═══════════════════════════════════════════════════════════════════
-
-async function refreshData() {
-  document.getElementById('statusText').textContent = 'Refreshing...';
-  document.getElementById('statusDot').style.background = 'var(--accent-amber)';
-  await fetch('/api/refresh', { method: 'POST' });
-  // Poll until done
-  const poll = setInterval(async () => {
-    const health = await fetchJSON('/api/health');
-    if (health && !health.is_running) {
-      clearInterval(poll);
-      await loadDashboard();
-    }
-  }, 3000);
-}
-
-async function retrainModel() {
-  if (!confirm('Retrain will clear cache and rebuild all models. This may take several minutes. Continue?')) return;
-  document.getElementById('statusText').textContent = 'Retraining...';
-  document.getElementById('statusDot').style.background = 'var(--accent-purple)';
-  await fetch('/api/retrain', { method: 'POST' });
-  const poll = setInterval(async () => {
-    const health = await fetchJSON('/api/health');
-    if (health && !health.is_running) {
-      clearInterval(poll);
-      await loadDashboard();
-    }
-  }, 5000);
-}
-
-// Auto-refresh every 5 minutes
-setInterval(loadDashboard, 5 * 60 * 1000);
-
-// Initial load
-loadDashboard();
+// ─── Initial load + polling ───
+fetchReport();
+fetchNowcast();
+setInterval(fetchReport, 300000);   // 5 min
+setInterval(fetchNowcast, 900000);  // 15 min
 </script>
 </body>
 </html>

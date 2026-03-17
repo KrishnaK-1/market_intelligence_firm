@@ -13,10 +13,13 @@ market_intelligence_firm/
 │   └── settings.py           # All configuration, tickers, regime templates
 ├── data/
 │   ├── ingestion.py           # FRED API, Yahoo Finance, Shiller CAPE
+│   ├── nowcast.py             # Real-time nowcast (BLS + Yahoo + FRED daily)
+│   ├── ie_data.xls            # Shiller CAPE local data file
 │   └── cache/                 # Cached data files (auto-generated)
 ├── models/
 │   ├── regime_classifier.py   # Ensemble HMM + GMM + XGBoost
-│   └── saved/                 # Persisted trained models
+│   ├── feedback.py            # Self-optimizing feedback loop
+│   └── saved/                 # Persisted trained models + params
 ├── agents/
 │   └── economic_manager.py    # Economic Regime Manager + CIO Aggregator
 ├── alerts/
@@ -24,11 +27,11 @@ market_intelligence_firm/
 ├── backtest/
 │   └── engine.py              # Walk-forward backtester
 ├── dashboard/
-│   ├── server.py              # FastAPI server + scheduler
-│   └── index.html             # Interactive dashboard
-├── main.py                    # Orchestrator (full pipeline)
+│   ├── server.py              # FastAPI server + scheduler + nowcast endpoint
+│   └── index.html             # Interactive 4-tab dashboard
+├── main.py                    # Orchestrator (full pipeline + retrain stability)
 ├── requirements.txt
-├── .env.example
+├── .env                       # FRED_API_KEY + BLS_API_KEY
 └── README.md
 ```
 
@@ -41,15 +44,17 @@ cd market_intelligence_firm
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
 ```bash
 cp .env.example .env
-# Edit .env and add your FRED API key:
-# FRED_API_KEY=your_key_here
+# Edit .env and add your API keys:
+# FRED_API_KEY=your_fred_key_here
+# BLS_API_KEY=your_bls_key_here
 ```
 
-Get a free FRED API key at: https://fred.stlouisfed.org/docs/api/api_key.html
+- Get a free FRED API key at: https://fred.stlouisfed.org/docs/api/api_key.html
+- Get a free BLS API key at: https://data.bls.gov/registrationEngine/ (required for nowcast module)
 
 ### 3. Run the Server
 
@@ -163,6 +168,7 @@ Yield curve spreads, credit spreads, unemployment dynamics, industrial productio
 | GET | `/api/backtest` | Backtest results |
 | GET | `/api/transition` | Transition probability matrix |
 | GET | `/api/confidence` | Model confidence/disagreement |
+| GET | `/api/nowcast` | Real-time nowcast (XGBoost only) |
 | POST | `/api/refresh` | Manual data refresh (inference) |
 | POST | `/api/retrain` | Force full retrain |
 | GET | `/api/health` | Health check |
@@ -219,6 +225,66 @@ All configuration lives in `config/settings.py`:
 - **Investment universe**: `EQUITY_SECTORS`, `FIXED_INCOME`, `COMMODITIES`, `INTERNATIONAL`
 - **Allocation templates**: `REGIME_ALLOCATIONS`, `REGIME_SUB_ALLOCATIONS`
 - **Server settings**: `SERVER_PORT`, `REFRESH_HOUR`, `TIMEZONE`
+
+---
+
+## Version History
+
+### v2.0 — Dashboard Redesign + Nowcast + Stability (March 17, 2026)
+
+**Nowcast Module (`data/nowcast.py`)**
+- Real-time regime classification using XGBoost only (no HMM/GMM)
+- Three-tier data ingestion: BLS API (payrolls, unemployment, CPI), Yahoo Finance (S&P 500, VIX), FRED daily (yields, credit spreads, fed funds)
+- 18 of 24 features pulled live; remaining 6 carried forward from last official FRED monthly release
+- Signals detection: S&P 3M momentum, VIX elevation, credit spread widening, yield curve inversion, consumer sentiment, unemployment acceleration
+- Auto-refreshes every 15 minutes during market hours
+
+**Conviction Framework (Dashboard)**
+- Top regime > 65%: displays regime name with "HIGH CONVICTION" green badge
+- Top regime 50-65% with > 5% gap: displays regime name with "LOW CONVICTION" amber badge
+- Top regime < 50% or top two within 5%: displays "REGIME TRANSITION" with both contenders and red badge
+- Replaces the misleading single-regime display when the model is genuinely uncertain
+
+**Retrain Stability**
+- 2% improvement threshold: optimizer must find params scoring > 2% better than current model to trigger retrain, preventing marginal parameter changes from flipping the regime call
+- Parameter persistence: current model's params are saved to disk after each run, ensuring Retrain button produces consistent results across restarts
+- Eliminated the Expansion/Slowdown flip-flop that occurred when optimizer found marginally different params on each run
+
+**Dashboard Redesign (4 Tabs)**
+- Tab 1 — Current Regime: conviction badge, probability bars, forecast table + chart, alerts, nowcast card
+- Tab 2 — Portfolio & Allocations: asset class doughnut chart, 15 ticker weights in 3-column grid
+- Tab 3 — Historical Analysis: full-width timeline, transition matrix, backtest stats + chart
+- Tab 4 — Model Diagnostics: individual model votes, ensemble weight sliders, confidence cap sliders, feature importance
+
+**BLS API Integration**
+- Added BLS API v2 as a data source for employment and price data
+- BLS updates payrolls, unemployment, and CPI 1-3 weeks faster than FRED
+- Graceful fallback: if BLS is unavailable, nowcast uses FRED monthly cache
+
+**Bug Fixes**
+- Forecast table key case mismatch fixed (API sends lowercase `1m`/`3m`/`6m`)
+- Alert re-generation after optimizer retrain
+- FRED daily series fallback when API returns 500 errors
+- StandardScaler feature name warning suppressed in nowcast
+
+### v1.0 — Initial Release (March 15, 2026)
+
+- HMM + GMM + XGBoost ensemble regime classifier (5 states)
+- 24-feature matrix from FRED, Shiller CAPE, Yahoo Finance
+- Self-optimizing feedback loop with parameter persistence
+- FastAPI dashboard with regime display and alerts
+- Walk-forward backtester (Sharpe 0.96, MaxDD -14.3%)
+- 91% ground truth accuracy against NBER recession history
+- Confidence cap fix for 2001 recession detection
+
+### Planned — v3.0
+
+- Add ISM Manufacturing PMI, initial claims level, continued claims as new features (27 total)
+- Retrain XGBoost with expanded feature set
+- Recency-weighted scoring (weight recent decades more heavily in optimizer)
+- Transition detection scoring (penalize late regime change calls)
+- Connect dashboard weight sliders to backend for live recalibration
+- Fix backtest splits 0-3 (StandardScaler empty array issue)
 
 ---
 
