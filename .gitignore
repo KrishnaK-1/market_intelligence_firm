@@ -10,9 +10,9 @@ data/cache/
 # Saved models (regenerated on retrain)
 models/saved/*.pkl
 
-# Keep the optimized params (they accumulate improvements)
-!models/saved/optimized_params.json
-!models/saved/optimization_history.json
+# ignore the optimized params
+models/saved/optimized_params.json
+models/saved/optimization_history.json
 
 # Logs
 logs/*.log

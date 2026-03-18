@@ -65,6 +65,10 @@ BLS_SERIES = {
     "CPI": "CUSR0000SA0",        # CPI All Items (index level)
 }
 
+# Treasury Fiscal Data API (tax withholding — display signal only, no key required)
+TREASURY_API_BASE = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
+TREASURY_DTS_ENDPOINT = "/v1/accounting/dts/deposits_withdrawals_operating_cash"
+
 
 def _fetch_bls_latest(series_id: str, years_back: int = 2) -> Optional[Tuple[float, str]]:
     """
@@ -608,6 +612,99 @@ def run_nowcast(
     if "umcsent" in vals and vals["umcsent"] < 65:
         signals.append(f"Consumer sentiment low: {vals['umcsent']:.1f}")
 
+    # ── Tax Withholding Signal (display-only, not a model feature) ──
+    # Fetches 3-month avg YoY growth from Treasury Daily Statement.
+    # This is independent of XGBoost — purely informational for the PM.
+    withholding_data = {}
+    try:
+        def _fetch_wh_period(start_date, end_date):
+            """Fetch withholding total for a date range from Treasury API."""
+            for catg in ["Taxes - Withheld Individual/FICA",
+                         "Withheld Income and Employment Taxes"]:
+                params = {
+                    "fields": "record_date,transaction_today_amt",
+                    "filter": f"transaction_catg:eq:{catg},"
+                              f"transaction_type:eq:Deposits,"
+                              f"record_date:gte:{start_date},record_date:lt:{end_date}",
+                    "page[size]": 500,
+                }
+                resp = requests.get(
+                    f"{TREASURY_API_BASE}{TREASURY_DTS_ENDPOINT}",
+                    params=params, timeout=15,
+                )
+                resp.raise_for_status()
+                records = resp.json().get("data", [])
+                total = sum(float(r["transaction_today_amt"]) for r in records
+                            if r.get("transaction_today_amt"))
+                if total > 0:
+                    return total, len(records)
+            return 0, 0
+
+        now_dt = datetime.now()
+        months_yoy = []
+
+        # Fetch current month + prior 2 months (for 3-month average)
+        for months_back in range(1,4):  # Skip partal month and go to full 3 months prior
+            m = now_dt.month - months_back
+            y = now_dt.year
+            if m <= 0:
+                m += 12
+                y -= 1
+
+            # Current/recent month range
+            pm_start = f"{y}-{m:02d}-01"
+            if m == 12:
+                pm_end = f"{y + 1}-01-01"
+            else:
+                pm_end = f"{y}-{m + 1:02d}-01"
+
+            # For current month, use today as end date
+            if months_back == 0:
+                pm_end = now_dt.strftime("%Y-%m-%d")
+
+            # Same month last year
+            pm_ly_start = f"{y - 1}-{m:02d}-01"
+            if m == 12:
+                pm_ly_end = f"{y}-01-01"
+            else:
+                pm_ly_end = f"{y - 1}-{m + 1:02d}-01"
+
+            wh_cur, cur_days = _fetch_wh_period(pm_start, pm_end)
+            wh_ly, ly_days = _fetch_wh_period(pm_ly_start, pm_ly_end)
+
+            if wh_cur > 0 and wh_ly > 0:
+                if months_back == 0 and cur_days >= 5 and ly_days > 0:
+                    # Current month MTD: normalize by business days
+                    daily_avg_ly = wh_ly / ly_days
+                    comparable_ly = daily_avg_ly * cur_days
+                    yoy_pct = ((wh_cur / comparable_ly) - 1) * 100
+                    months_yoy.append(yoy_pct)
+                elif months_back > 0:
+                    # Completed months: direct comparison
+                    yoy_pct = ((wh_cur / wh_ly) - 1) * 100
+                    months_yoy.append(yoy_pct)
+
+        if months_yoy:
+            wh_3m_avg = sum(months_yoy) / len(months_yoy)
+            withholding_data = {
+                "withholding_yoy_3m": round(wh_3m_avg, 1),
+                "months_used": len(months_yoy),
+                "monthly_values": [round(v, 1) for v in months_yoy],
+            }
+
+            # Fire signal based on thresholds
+            if wh_3m_avg < 0:
+                signals.append(f"Tax withholding DECLINING: {wh_3m_avg:.1f}% (3M avg YoY)")
+            elif wh_3m_avg < 3.0:
+                signals.append(f"Tax withholding growth weak: {wh_3m_avg:.1f}% (3M avg YoY)")
+            elif wh_3m_avg < 6.0:
+                signals.append(f"Tax withholding growth slowing: {wh_3m_avg:.1f}% (3M avg YoY)")
+
+            logger.info(f"Nowcast: Tax withholding 3M avg YoY: {wh_3m_avg:.1f}% "
+                        f"(months: {[round(v, 1) for v in months_yoy]})")
+    except Exception as e:
+        logger.warning(f"Nowcast: Tax withholding signal fetch failed: {e}")
+
     result = {
         "regime": regime_name,
         "probabilities": probabilities,
@@ -615,6 +712,7 @@ def run_nowcast(
         "data_freshness": freshness,
         "signals_firing": signals,
         "feature_values": {col: round(float(vals[col]), 4) for col in model_cols},
+        "withholding_signal": withholding_data,
         "model": "XGBoost-only (no HMM/GMM)",
         "timestamp": datetime.now().isoformat(),
     }
