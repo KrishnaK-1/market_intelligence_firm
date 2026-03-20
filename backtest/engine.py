@@ -44,7 +44,10 @@ class BacktestEngine:
     ) -> Dict:
         """
         Run walk-forward backtest.
-        Only tests on periods where both features and asset returns exist.
+
+        Training uses the FULL feature matrix (1952+) so every split sees
+        multiple recessions.  Testing/allocation evaluation is restricted to
+        the overlap period where both features AND asset returns exist.
         """
         from models.regime_classifier import EnsembleRegimeClassifier
 
@@ -52,26 +55,29 @@ class BacktestEngine:
 
         logger.info("Starting walk-forward backtest...")
 
-        # Align data to common date range
+        # ── Identify the overlap period (for TEST windows only) ──
         common_idx = feature_matrix.index.intersection(asset_returns.index)
-        if len(common_idx) < self.min_train_months + 12:
-            logger.warning(f"Only {len(common_idx)} overlapping months. Reducing min_train to fit.")
-            self.min_train_months = max(60, len(common_idx) // 2)
-
-        features = feature_matrix.loc[common_idx].copy()
-        returns = asset_returns.loc[common_idx].copy()
-
-        n_obs = len(features)
-        logger.info(
-            f"Backtest data: {n_obs} months, {features.index[0].strftime('%Y-%m')} to {features.index[-1].strftime('%Y-%m')}")
-
-        # Walk-forward splits on the OVERLAPPING data only
-        test_pool = n_obs - self.min_train_months
-        if test_pool <= 0:
-            logger.error("Not enough data for backtesting")
+        if len(common_idx) < 36:
+            logger.error(f"Only {len(common_idx)} overlapping months — need at least 36")
             return {"error": "Insufficient overlapping data"}
 
-        split_size = max(12, test_pool // self.n_splits)
+        overlap_start = common_idx[0]
+        overlap_end = common_idx[-1]
+
+        returns = asset_returns.loc[common_idx].copy()
+
+        # Full feature matrix for training (includes pre-ETF history)
+        full_features = feature_matrix.copy()
+
+        n_overlap = len(common_idx)
+        logger.info(
+            f"Backtest data: {n_overlap} months overlap, "
+            f"{overlap_start.strftime('%Y-%m')} to {overlap_end.strftime('%Y-%m')}, "
+            f"full training history: {len(full_features)} months from {full_features.index[0].strftime('%Y-%m')}")
+
+        # ── Define test windows across the overlap period ──
+        # Divide the overlap into n_splits roughly equal test windows
+        split_size = max(12, n_overlap // self.n_splits)
 
         regime_predictions = pd.Series(dtype=str, name="predicted_regime")
         regime_actuals = pd.Series(dtype=float, name="actual_recession")
@@ -80,23 +86,52 @@ class BacktestEngine:
         regime_accuracy_by_split = []
 
         for split_idx in range(self.n_splits):
-            train_end = self.min_train_months + split_idx * split_size
-            test_start = train_end
-            test_end = min(train_end + split_size, n_obs)
+            # Test window: a slice of the overlap period
+            test_start_pos = split_idx * split_size
+            test_end_pos = min(test_start_pos + split_size, n_overlap)
 
-            if test_start >= n_obs or test_end <= test_start:
+            if test_start_pos >= n_overlap or test_end_pos <= test_start_pos:
                 break
 
-            train_data = features.iloc[:train_end]
-            test_data = features.iloc[test_start:test_end]
+            test_start_date = common_idx[test_start_pos]
+            test_end_date = common_idx[test_end_pos - 1]
+
+            # Training: ALL feature data BEFORE the test window start
+            train_data = full_features[full_features.index < test_start_date]
+            test_data = feature_matrix.loc[
+                (feature_matrix.index >= test_start_date) &
+                (feature_matrix.index <= test_end_date)
+            ]
+
+            if len(train_data) < self.min_train_months:
+                logger.warning(
+                    f"  Split {split_idx}: only {len(train_data)} training months "
+                    f"(need {self.min_train_months}), skipping")
+                continue
 
             logger.info(
-                f"  Split {split_idx}: train {train_data.index[0].strftime('%Y-%m')} to {train_data.index[-1].strftime('%Y-%m')}, test {test_data.index[0].strftime('%Y-%m')} to {test_data.index[-1].strftime('%Y-%m')}")
+                f"  Split {split_idx}: train {train_data.index[0].strftime('%Y-%m')} to "
+                f"{train_data.index[-1].strftime('%Y-%m')} ({len(train_data)} months), "
+                f"test {test_start_date.strftime('%Y-%m')} to "
+                f"{test_end_date.strftime('%Y-%m')} ({len(test_data)} months)")
 
             # Train fresh model on training data
+            # Pre-fill NaNs: features like VIX/CAPE start later than 1952.
+            # ffill+bfill on the training slice propagates values where possible.
+            # Then drop rows where more than half the columns are still NaN.
+            train_filled = train_data.ffill().bfill()
+            n_cols = len(train_filled.columns)
+            train_filled = train_filled.dropna(thresh=int(n_cols * 0.5))
+
+            if len(train_filled) < self.min_train_months:
+                logger.warning(
+                    f"  Split {split_idx}: only {len(train_filled)} valid rows after fill "
+                    f"(need {self.min_train_months}), skipping")
+                continue
+
             model = classifier_class(n_regimes=5)
             try:
-                model.fit(train_data)
+                model.fit(train_filled)
             except Exception as e:
                 logger.warning(f"  Split {split_idx} training failed: {e}")
                 continue
@@ -124,7 +159,7 @@ class BacktestEngine:
                     "test_start": test_data.index[0].strftime("%Y-%m"),
                     "test_end": test_data.index[-1].strftime("%Y-%m"),
                     "recession_recall": float(recall) if not np.isnan(recall) else None,
-                    "n_months": test_end - test_start,
+                    "n_months": len(test_data),
                 })
 
             # Compute strategy returns

@@ -62,6 +62,7 @@ class EnsembleRegimeClassifier:
         # Feature columns used during training
         self.feature_cols: List[str] = []
         self.is_fitted = False
+        self._col_medians: Optional[pd.Series] = None
 
         # Label creation parameters (injectable by optimizer)
         self._label_params: Optional[Dict] = None
@@ -85,12 +86,54 @@ class EnsembleRegimeClassifier:
 
         self.feature_cols = list(X_raw.columns)
 
+        # Handle NaNs gracefully for pre-1990 data where VIX/CAPE/credit
+        # spreads don't exist.  Strategy:
+        #   1. ffill + bfill propagates values where series exists
+        #   2. Keep rows with at least 60% of columns populated
+        #   3. Fill remaining NaNs with column medians so StandardScaler
+        #      and all downstream models receive a complete matrix
+        #   4. If a column is entirely NaN (series doesn't exist yet in
+        #      this training window), fill with 0.0 — after scaling this
+        #      represents the neutral/mean value
         X_raw = X_raw.ffill().bfill()
-        valid_mask = X_raw.notna().all(axis=1) & target.notna()
+        n_feature_cols = X_raw.shape[1]
+        valid_mask = (
+            (X_raw.notna().sum(axis=1) >= int(n_feature_cols * 0.6))
+            & target.notna()
+        )
         X_raw = X_raw[valid_mask]
         target = target[valid_mask]
 
+        # Impute any remaining NaNs with column medians
+        col_medians = X_raw.median()
+        # For columns that are entirely NaN (series not yet available),
+        # median is NaN — replace with 0.0 (neutral after scaling)
+        still_nan = col_medians.isna()
+        if still_nan.any():
+            nan_cols = list(col_medians[still_nan].index)
+            logger.info(f"Columns with no data in training window (filled with 0): {nan_cols}")
+            col_medians = col_medians.fillna(0.0)
+        X_raw = X_raw.fillna(col_medians)
+        self._col_medians = col_medians  # save for predict-time imputation
+
+        # Final safety check: ensure no NaNs remain
+        remaining_nans = X_raw.isna().sum().sum()
+        if remaining_nans > 0:
+            logger.warning(f"  {remaining_nans} NaNs still remain after imputation — filling with 0")
+            X_raw = X_raw.fillna(0.0)
+
+        logger.info(f"Training data: {len(X_raw)} rows after NaN handling "
+                    f"({n_feature_cols} features, "
+                    f"{(~valid_mask).sum()} rows dropped)")
+
         X_scaled = self.scaler.fit_transform(X_raw)
+        # StandardScaler produces NaN for zero-variance columns (e.g. a column
+        # filled entirely with 0.0 because the series didn't exist yet).
+        # Replace those NaNs with 0.0 (the scaled mean).
+        if np.isnan(X_scaled).any():
+            nan_count = np.isnan(X_scaled).sum()
+            logger.info(f"Replacing {nan_count} NaN values from zero-variance columns after scaling")
+            X_scaled = np.nan_to_num(X_scaled, nan=0.0)
         X_df = pd.DataFrame(X_scaled, index=X_raw.index, columns=self.feature_cols)
 
         # Step 1: Train HMM (unsupervised, sequential)
@@ -347,6 +390,9 @@ class EnsembleRegimeClassifier:
             raise RuntimeError("Model not fitted. Call .fit() first.")
 
         X_clean = X_raw[self.feature_cols].ffill().bfill()
+        # Apply same median imputation used during training
+        if hasattr(self, '_col_medians') and self._col_medians is not None:
+            X_clean = X_clean.fillna(self._col_medians)
         X_scaled = self.scaler.transform(X_clean)
 
         hmm_proba_raw = self.hmm.predict_proba(X_scaled)
@@ -457,6 +503,9 @@ class EnsembleRegimeClassifier:
         Compute per-observation confidence metrics.
         """
         X_clean = X_raw[self.feature_cols].ffill().bfill()
+        # Apply same median imputation used during training
+        if hasattr(self, '_col_medians') and self._col_medians is not None:
+            X_clean = X_clean.fillna(self._col_medians)
         X_scaled = self.scaler.transform(X_clean)
 
         hmm_top = np.array([self._hmm_state_map.get(s, 0) for s in self.hmm.predict(X_scaled)])
