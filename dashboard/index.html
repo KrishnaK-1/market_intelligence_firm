@@ -878,7 +878,7 @@ function renderRegime(econ) {
   // Conviction framework:
   // > 65% top regime = High Conviction
   // 50-65% = Low Conviction
-  // < 50% or gap < 5% = Regime Transition
+  // < 50% or gap < 8% = Regime Transition
   if (top1[1] >= 0.65) {
     // HIGH CONVICTION
     nameEl.textContent = top1[0];
@@ -889,7 +889,7 @@ function renderRegime(econ) {
     badgeEl.style.background = 'rgba(45,212,168,0.15)';
     badgeEl.style.color = 'var(--accent-green)';
     confEl.textContent = (top1[1] * 100).toFixed(0) + '%';
-  } else if (top1[1] >= 0.50 && gap >= 0.05) {
+  } else if (top1[1] >= 0.50 && gap >= 0.08) {
     // LOW CONVICTION
     nameEl.textContent = top1[0];
     nameEl.style.color = REGIME_COLORS[top1[0]] || '#fff';

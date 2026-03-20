@@ -41,6 +41,7 @@ class BacktestEngine:
             feature_matrix: pd.DataFrame,
             asset_returns: pd.DataFrame,
             classifier_class=None,
+            label_params: Optional[Dict] = None,
     ) -> Dict:
         """
         Run walk-forward backtest.
@@ -130,6 +131,8 @@ class BacktestEngine:
                 continue
 
             model = classifier_class(n_regimes=5)
+            if label_params is not None:
+                model._label_params = label_params
             try:
                 model.fit(train_filled)
             except Exception as e:

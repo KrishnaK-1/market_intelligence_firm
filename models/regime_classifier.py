@@ -290,6 +290,30 @@ class EnsembleRegimeClassifier:
         slowdown_mask = slowdown_mask & (labels == 0)
         labels[slowdown_mask] = 1
 
+        # ── Forward-shifted Slowdown: label pre-recession months ──
+        # If enabled, the N months BEFORE each recession start are labeled
+        # Slowdown.  This teaches the model to associate leading indicator
+        # patterns with an *upcoming* contraction rather than only detecting
+        # slowdowns coincidentally.  Only overwrites Expansion (label 0).
+        pre_rec_lead = int(p.get("pre_recession_lead_months", 0))
+        if pre_rec_lead > 0:
+            rec_diff_starts = recession.diff()
+            recession_starts = rec_diff_starts[rec_diff_starts == 1].index
+            pre_rec_count = 0
+            for start_date in recession_starts:
+                pre_window = (
+                    (X_df.index >= start_date - pd.DateOffset(months=pre_rec_lead))
+                    & (X_df.index < start_date)
+                )
+                # Only overwrite Expansion labels — don't clobber Recovery
+                # from a prior recession or existing signal-based Slowdown
+                overwrite_mask = pre_window & (labels == 0)
+                pre_rec_count += overwrite_mask.sum()
+                labels[overwrite_mask] = 1
+            if pre_rec_count > 0:
+                logger.info(f"  Forward-shifted: {pre_rec_count} months re-labeled "
+                            f"Expansion->Slowdown (lead={pre_rec_lead}mo)")
+
         logger.info(f"Label distribution:\n{labels.value_counts().sort_index()}")
         return labels
 

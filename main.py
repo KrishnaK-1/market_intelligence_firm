@@ -3,7 +3,6 @@ Market Intelligence Firm -- Main Orchestrator
 =============================================
 Coordinates data ingestion, model training, agent updates,
 backtesting, and alert generation.
-
 FEEDBACK LOOP:
   1. Load persisted optimized params from disk (if they exist)
   2. Train model using those params
@@ -189,10 +188,38 @@ class MarketIntelligenceFirm:
             # If optimization found better params, retrain the model NOW
             # so the dashboard serves the improved version
             opt = fb.get("optimization")
-            current_score = (
-                    0.6 * fb.get("ground_truth_validation", {}).get("accuracy", 0)
-                    + 0.4 * fb.get("return_validation", {}).get("overall_alignment", 0)
-            )
+            # Score must match the optimizer's formula (35% GT + 30% ret + 35% lead)
+            gt_acc = fb.get("ground_truth_validation", {}).get("accuracy", 0)
+            ret_align = fb.get("return_validation", {}).get("overall_alignment", 0)
+            # Compute transition detection lead for current model
+            from models.feedback import NBER_RECESSIONS
+            regime_history = self.economic_manager.regime_history
+            if regime_history is not None and len(regime_history) > 0:
+                r_idx = regime_history.values.argmax(axis=1)
+                cur_preds = pd.Series(
+                    [{0: "Expansion", 1: "Slowdown", 2: "Contraction",
+                      3: "Recovery", 4: "Crisis"}[i] for i in r_idx],
+                    index=regime_history.index,
+                )
+                _lead_months = []
+                for _start, _ in NBER_RECESSIONS:
+                    _rs = pd.Timestamp(_start)
+                    _pre = cur_preds[
+                        (cur_preds.index >= _rs - pd.DateOffset(months=18))
+                        & (cur_preds.index < _rs)
+                    ]
+                    _w = _pre[_pre.isin(["Slowdown", "Contraction", "Crisis"])]
+                    if len(_w) > 0:
+                        _f = _w.index[0]
+                        _lead_months.append(
+                            (_rs.year - _f.year) * 12 + (_rs.month - _f.month)
+                        )
+                    else:
+                        _lead_months.append(0)
+                cur_lead_bonus = min(np.mean(_lead_months) / 12.0, 1.0)
+            else:
+                cur_lead_bonus = 0.0
+            current_score = 0.35 * gt_acc + 0.30 * ret_align + 0.35 * cur_lead_bonus
             best_opt_score = opt.get("best_score", 0) if opt else 0
             improvement = best_opt_score - current_score
             if opt and improvement > 0.02:
@@ -254,6 +281,7 @@ class MarketIntelligenceFirm:
                 self._backtest_results = self.backtest_engine.run(
                     feature_matrix=self.feature_matrix,
                     asset_returns=self.asset_returns,
+                    label_params=self.classifier._label_params if self.classifier else None,
                 )
                 stats = self._backtest_results.get("strategy_stats", {})
                 logger.info(
