@@ -80,7 +80,6 @@ DEFAULT_PARAMS = {
     "sp500_mom3m_threshold": -5.0,
     "credit_accel_threshold": 0.3,
     "umcsent_level_threshold": 65.0,
-    "pre_recession_lead_months": 0,  # 0 = disabled; >0 labels N months pre-recession as Slowdown
 }
 
 
@@ -374,10 +373,6 @@ class FeedbackLoop:
             "sp500_mom3m_threshold": [-10.0, -5.0, -3.0, 0.0],
             "credit_accel_threshold": [0.1, 0.2, 0.3, 0.5],
             "umcsent_level_threshold": [55.0, 60.0, 65.0, 70.0, 75.0],
-            # Forward-shifted labels: 0=disabled, >0 labels N months
-            # before each recession as Slowdown for predictive training.
-            # Capped at 9 — backtest shows 12mo degrades Sharpe too much.
-            "pre_recession_lead_months": [0, 6, 9],
         }
 
         rng = np.random.RandomState(42)
@@ -417,40 +412,13 @@ class FeedbackLoop:
 
                 gt = self._validate_ground_truth(preds, feature_matrix)
                 ret = self._validate_returns(preds, feature_matrix)
-
-                # Transition detection: how many months before each
-                # recession does the model first signal Slowdown?
-                lead_months = []
-                for start_str, _ in NBER_RECESSIONS:
-                    rec_start = pd.Timestamp(start_str)
-                    lookback = pd.DateOffset(months=18)
-                    pre = preds[
-                        (preds.index >= rec_start - lookback)
-                        & (preds.index < rec_start)
-                    ]
-                    warnings = pre[pre.isin(["Slowdown", "Contraction", "Crisis"])]
-                    if len(warnings) > 0:
-                        first = warnings.index[0]
-                        lead = ((rec_start.year - first.year) * 12
-                                + (rec_start.month - first.month))
-                        lead_months.append(lead)
-                    else:
-                        lead_months.append(0)
-
-                avg_lead = np.mean(lead_months) if lead_months else 0
-                lead_bonus = min(avg_lead / 12.0, 1.0)  # cap at 12 months
-
-                # Score: 35% ground truth + 30% return alignment + 35% transition lead
-                score = (0.35 * gt["accuracy"]
-                         + 0.30 * ret["overall_alignment"]
-                         + 0.35 * lead_bonus)
+                score = 0.6 * gt["accuracy"] + 0.4 * ret["overall_alignment"]
 
                 iteration_results.append({
                     "iteration": i,
                     "score": round(float(score), 4),
                     "gt_accuracy": round(float(gt["accuracy"]), 4),
                     "return_alignment": round(float(ret["overall_alignment"]), 4),
-                    "avg_lead_months": round(float(avg_lead), 1),
                     "label_dist": {str(k): int(v) for k, v in label_counts.items()},
                 })
 
@@ -459,8 +427,7 @@ class FeedbackLoop:
                     best_params = dict(trial_params)
                     logger.info(
                         f"    Iter {i}: score={score:.3f} (GT={gt['accuracy']:.1%}, "
-                        f"Ret={ret['overall_alignment']:.1%}, Lead={avg_lead:.1f}mo) "
-                        f"labels={label_counts} ** NEW BEST **"
+                        f"Ret={ret['overall_alignment']:.1%}) labels={label_counts} ** NEW BEST **"
                     )
 
             except Exception as e:
