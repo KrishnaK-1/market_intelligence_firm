@@ -93,11 +93,13 @@ class EconomicRegimeManager(BaseManager):
         self.confidence_data: Optional[pd.DataFrame] = None
         self.transition_matrix: Optional[np.ndarray] = None
         self._last_update: Optional[datetime] = None
+        self._neural_net_regime: Optional[str] = None
 
     def update(
         self,
         feature_matrix: pd.DataFrame,
         classifier: Optional[EnsembleRegimeClassifier] = None,
+        neural_classifier=None,
     ) -> None:
         """
         Run full regime analysis on updated data.
@@ -105,6 +107,7 @@ class EconomicRegimeManager(BaseManager):
         Args:
             feature_matrix: DataFrame from build_feature_matrix()
             classifier: Pre-trained classifier (if None, trains a new one)
+            neural_classifier: Optional NeuralRegimeClassifier (display-only)
         """
         self.feature_matrix = feature_matrix
 
@@ -131,6 +134,17 @@ class EconomicRegimeManager(BaseManager):
 
         # Transition matrix
         self.transition_matrix = self.classifier.transition_matrix
+
+        # Neural net regime (display-only, does NOT affect ensemble)
+        self._neural_net_regime = None
+        if neural_classifier is not None and getattr(neural_classifier, "is_fitted", False):
+            try:
+                nn_pred = neural_classifier.predict(features_only)
+                if len(nn_pred) > 0:
+                    self._neural_net_regime = nn_pred.iloc[-1]
+                    logger.info(f"  Neural net says: {self._neural_net_regime}")
+            except Exception as e:
+                logger.warning(f"Neural net prediction failed (non-fatal): {e}")
 
         self._last_update = datetime.now()
         logger.info(f"Economic Regime Manager updated. Current regime: {self.current_regime}")
@@ -163,6 +177,10 @@ class EconomicRegimeManager(BaseManager):
             signals["hmm_says"] = latest["hmm_regime"]
             signals["gmm_says"] = latest["gmm_regime"]
             signals["xgb_says"] = latest["xgb_regime"]
+
+        # Neural net vote (display-only)
+        if self._neural_net_regime is not None:
+            signals["neural_net_says"] = self._neural_net_regime
 
         return signals
 
@@ -286,6 +304,7 @@ class EconomicRegimeManager(BaseManager):
                 "hmm": signals.get("hmm_says", ""),
                 "gmm": signals.get("gmm_says", ""),
                 "xgb": signals.get("xgb_says", ""),
+                "neural_net": signals.get("neural_net_says", "N/A"),
             },
             "asset_class_allocation": ac_allocations,
             "ticker_allocation": allocations,

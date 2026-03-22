@@ -9,6 +9,7 @@ data/cache/
 
 # Saved models (regenerated on retrain)
 models/saved/*.pkl
+models/saved/*.pt
 
 # ignore the optimized params
 models/saved/optimized_params.json

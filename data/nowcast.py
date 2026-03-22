@@ -531,17 +531,21 @@ REGIME_LABELS = {0: "Expansion", 1: "Slowdown", 2: "Contraction", 3: "Recovery",
 def run_nowcast(
     fred_monthly: Optional[pd.DataFrame] = None,
     classifier=None,
+    model: str = "xgboost",
+    neural_classifier=None,
 ) -> Dict[str, Any]:
     """
     Run the full nowcast pipeline:
     1. Fetch real-time features
     2. Scale using the trained model's scaler
-    3. Predict using XGBoost only
+    3. Predict using selected model (XGBoost or Neural Net)
     4. Return classification with metadata
 
     Args:
         fred_monthly: Official FRED monthly data for fallback values
         classifier: Trained EnsembleRegimeClassifier (contains .xgb, .scaler, .feature_cols)
+        model: "xgboost" (default) or "neural_net"
+        neural_classifier: Trained NeuralRegimeClassifier (for model="neural_net")
 
     Returns:
         Dict with regime, probabilities, confidence, freshness, signals
@@ -559,6 +563,13 @@ def run_nowcast(
     # Fetch real-time features
     feature_row, freshness = fetch_realtime_features(fred_monthly)
 
+    # --- Neural Net prediction path ---
+    if model == "neural_net":
+        return _run_nowcast_neural(
+            feature_row, freshness, fred_monthly, neural_classifier
+        )
+
+    # --- XGBoost prediction path (default) ---
     # Ensure columns match the model's expected order
     model_cols = classifier.feature_cols
     for col in model_cols:
@@ -714,9 +725,110 @@ def run_nowcast(
         "feature_values": {col: round(float(vals[col]), 4) for col in model_cols},
         "withholding_signal": withholding_data,
         "model": "XGBoost-only (no HMM/GMM)",
+        "model_used": "xgboost",
         "timestamp": datetime.now().isoformat(),
     }
 
     logger.info(f"Nowcast result: {regime_name} ({confidence:.1%} confidence), {len(signals)} signals firing")
 
+    return result
+
+
+def _run_nowcast_neural(
+    feature_row: pd.DataFrame,
+    freshness: Dict[str, Any],
+    fred_monthly: Optional[pd.DataFrame],
+    neural_classifier,
+) -> Dict[str, Any]:
+    """
+    Run nowcast using the Neural Net (LSTM) classifier.
+    Needs 12 months of history for the LSTM sequence.
+    """
+    if neural_classifier is None:
+        # Try to load from disk
+        nn_path = MODEL_DIR / "neural_regime_classifier.pt"
+        if nn_path.exists():
+            try:
+                from models.neural_regime_classifier import NeuralRegimeClassifier
+                neural_classifier = NeuralRegimeClassifier.load(nn_path)
+            except Exception as e:
+                return {"error": f"Failed to load neural classifier: {e}", "regime": "Unknown"}
+        else:
+            return {"error": "Neural net model not trained yet", "regime": "Unknown"}
+
+    # Build historical context from FRED monthly data
+    # The LSTM needs seq_len (12) months of history
+    history = None
+    if fred_monthly is not None:
+        try:
+            from data.ingestion import build_feature_matrix, fetch_shiller_cape
+            shiller = fetch_shiller_cape()
+            hist_features = build_feature_matrix(fred_monthly, shiller)
+            hist_features = hist_features.drop(columns=["recession"], errors="ignore")
+
+            # Add experimental features (oil_yoy) to history
+            from models.feature_registry import FeatureRegistry
+            registry = FeatureRegistry()
+            extra = registry.compute_experimental_features(fred_monthly)
+            if not extra.empty:
+                common_idx = hist_features.index.intersection(extra.index)
+                extra_aligned = extra.reindex(hist_features.index)
+                hist_features = pd.concat([hist_features, extra_aligned], axis=1)
+
+            # Add experimental feature values to the current feature_row
+            # so the LSTM sees all 28 features for the latest month too
+            if not extra.empty:
+                last_extra = extra.iloc[-1:]
+                for col in last_extra.columns:
+                    if col not in feature_row.columns:
+                        feature_row[col] = last_extra[col].values[0]
+
+            # Take last (seq_len - 1) months as history
+            seq_len = neural_classifier.seq_len
+            if len(hist_features) >= seq_len - 1:
+                history = hist_features.iloc[-(seq_len - 1):]
+        except Exception as e:
+            logger.warning(f"Nowcast neural: Failed to build history: {e}")
+
+    # Predict using neural net
+    try:
+        nn_result = neural_classifier.predict_single(feature_row, history)
+        regime_name = nn_result["regime"]
+        probabilities = nn_result["probabilities"]
+        confidence = nn_result["confidence"]
+    except Exception as e:
+        logger.error(f"Neural net nowcast prediction failed: {e}")
+        return {"error": f"Neural net prediction failed: {e}", "regime": "Unknown"}
+
+    # Signals (same logic as XGBoost path)
+    signals = []
+    vals = feature_row.iloc[0]
+    if "sp500_mom_3m" in vals and vals["sp500_mom_3m"] < 0:
+        signals.append(f"S&P 500 3M momentum: {vals['sp500_mom_3m']:.1f}%")
+    if "sp500_yoy" in vals and vals["sp500_yoy"] < 0:
+        signals.append(f"S&P 500 YoY: {vals['sp500_yoy']:.1f}%")
+    if "vix" in vals and vals["vix"] > 25:
+        signals.append(f"VIX elevated: {vals['vix']:.1f}")
+    if "credit_spread" in vals and vals["credit_spread"] > 3.0:
+        signals.append(f"Credit spread wide: {vals['credit_spread']:.2f}%")
+    if "spread_10y2y" in vals and vals["spread_10y2y"] < 0:
+        signals.append(f"Yield curve inverted (10Y-2Y): {vals['spread_10y2y']:.2f}%")
+    if "unrate_chg_3m" in vals and vals["unrate_chg_3m"] > 0.3:
+        signals.append(f"Unemployment rising: +{vals['unrate_chg_3m']:.1f} (3M)")
+
+    result = {
+        "regime": regime_name,
+        "probabilities": probabilities,
+        "confidence": round(confidence, 4),
+        "data_freshness": freshness,
+        "signals_firing": signals,
+        "model": f"LSTM Neural Net ({len(feature_row.columns)} features)",
+        "model_used": "neural_net",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    logger.info(
+        f"Nowcast (neural_net): {regime_name} ({confidence:.1%} confidence), "
+        f"{len(signals)} signals"
+    )
     return result

@@ -67,6 +67,13 @@ FRED_SERIES = {
     "VIXCLS":     "VIXCLS",        # VIX
     # Money
     "M2SL":       "M2SL",          # M2 Money Supply
+    # Commodities (for experimental features)
+    "DCOILWTICO": "DCOILWTICO",    # WTI Crude Oil Price
+    # Leading indicators (for neural net experimental features)
+    "PERMIT":     "PERMIT",         # Building Permits
+    "CES0500000003": "CES0500000003",  # Average Hourly Earnings
+    # Leading indicators
+    "USSLIND":    "USSLIND",        # Conference Board Leading Economic Index
     # NBER recession indicator (target)
     "USREC":      "USREC",         # NBER Recession Indicator
 }

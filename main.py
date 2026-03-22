@@ -71,8 +71,9 @@ class MarketIntelligenceFirm:
         self.asset_prices: Optional[pd.DataFrame] = None
         self.asset_returns: Optional[pd.DataFrame] = None
 
-        # Model
+        # Models
         self.classifier: Optional[EnsembleRegimeClassifier] = None
+        self.neural_classifier = None  # Independent LSTM (display-only)
 
         # State
         self._last_run: Optional[datetime] = None
@@ -147,11 +148,39 @@ class MarketIntelligenceFirm:
             self.classifier.fit(self.feature_matrix)
             self.classifier.save(model_path)
 
+        # -- Step 4b: Train Neural Net (independent, display-only) --
+        logger.info("Step 4b: Training neural regime classifier (LSTM)...")
+        try:
+            from models.neural_regime_classifier import NeuralRegimeClassifier
+            from models.feature_registry import FeatureRegistry
+
+            registry = FeatureRegistry()
+            extra_features = registry.compute_experimental_features(self.fred_data)
+
+            self.neural_classifier = NeuralRegimeClassifier()
+            # Use same label params as the ensemble for consistency
+            if self.classifier and self.classifier._label_params:
+                self.neural_classifier._label_params = self.classifier._label_params
+            self.neural_classifier.fit(self.feature_matrix, extra_features=extra_features)
+            self.neural_classifier.save()
+
+            nn_pred = self.neural_classifier.predict(
+                self.feature_matrix.drop(columns=["recession"], errors="ignore")
+            )
+            if len(nn_pred) > 0:
+                logger.info(f"  Neural net latest regime: {nn_pred.iloc[-1]}")
+        except Exception as e:
+            logger.warning(f"Neural net training failed (non-fatal): {e}")
+            import traceback
+            traceback.print_exc()
+            self.neural_classifier = None
+
         # -- Step 4: Update Economic Manager --
         logger.info("Step 4: Updating Economic Regime Manager...")
         self.economic_manager.update(
             feature_matrix=self.feature_matrix,
             classifier=self.classifier,
+            neural_classifier=self.neural_classifier,
         )
 
         # -- Step 5: Generate Alerts --
@@ -207,6 +236,7 @@ class MarketIntelligenceFirm:
                 self.economic_manager.update(
                     feature_matrix=self.feature_matrix,
                     classifier=self.classifier,
+                    neural_classifier=self.neural_classifier,
                 )
                 logger.info(f"  Model retrained with optimized params. Current regime: {self.economic_manager.current_regime}")
 
@@ -288,9 +318,20 @@ class MarketIntelligenceFirm:
             else:
                 raise RuntimeError("No trained model found. Run full pipeline first.")
 
+        # Load neural classifier if not already in memory
+        if self.neural_classifier is None:
+            nn_path = MODEL_DIR / "neural_regime_classifier.pt"
+            if nn_path.exists():
+                try:
+                    from models.neural_regime_classifier import NeuralRegimeClassifier
+                    self.neural_classifier = NeuralRegimeClassifier.load(nn_path)
+                except Exception as e:
+                    logger.warning(f"Failed to load neural classifier: {e}")
+
         self.economic_manager.update(
             feature_matrix=self.feature_matrix,
             classifier=self.classifier,
+            neural_classifier=self.neural_classifier,
         )
 
         self._alerts = self.alert_engine.evaluate(

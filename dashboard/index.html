@@ -556,7 +556,13 @@ input[type="range"]::-webkit-slider-thumb {
       </div>
       <!-- Nowcast (live) -->
       <div class="card">
-        <div class="card-header">Real-Time Nowcast (XGBoost) <span class="card-badge" id="nowcastBadge" style="background: rgba(32,192,224,0.15); color: var(--accent-cyan);">Loading...</span></div>
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Real-Time Nowcast <span class="card-badge" id="nowcastBadge" style="background: rgba(32,192,224,0.15); color: var(--accent-cyan);">Loading...</span></span>
+          <select id="nowcastModelSelect" onchange="fetchNowcast()" style="font-family:var(--font-mono);font-size:13px;padding:4px 10px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-bright);border-radius:6px;cursor:pointer;">
+            <option value="xgboost">XGBoost</option>
+            <option value="neural_net">Neural Net (LSTM)</option>
+          </select>
+        </div>
         <div id="nowcastContent">
           <div style="text-align: center; padding: 16px; color: var(--text-muted);">Fetching real-time data...</div>
         </div>
@@ -1188,7 +1194,8 @@ function renderBacktest(bt) {
 // ─── Nowcast ───
 async function fetchNowcast() {
   try {
-    const resp = await fetch('/api/nowcast');
+    const model = document.getElementById('nowcastModelSelect').value;
+    const resp = await fetch(`/api/nowcast?model=${model}`);
     const data = await resp.json();
     renderNowcast(data);
   } catch (e) {
@@ -1213,7 +1220,7 @@ function renderNowcast(nc) {
 
   let html = `<div style="text-align:center;margin-bottom:14px;">
     <div style="font-family:var(--font-mono);font-size:32px;font-weight:700;color:${color};">${nc.regime}</div>
-    <div style="font-size:15px;color:var(--text-secondary);margin-top:4px;">${(nc.confidence*100).toFixed(0)}% confidence (XGBoost only)</div>
+    <div style="font-size:15px;color:var(--text-secondary);margin-top:4px;">${(nc.confidence*100).toFixed(0)}% confidence (${nc.model_used === 'neural_net' ? 'LSTM Neural Net' : 'XGBoost'})</div>
   </div>`;
 
   // Freshness bar

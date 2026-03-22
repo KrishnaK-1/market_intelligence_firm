@@ -207,9 +207,9 @@ async def get_confidence():
 
 
 @app.get("/api/nowcast")
-async def get_nowcast():
+async def get_nowcast(model: str = "xgboost"):
     """
-    Real-time nowcast using XGBoost only.
+    Real-time nowcast using XGBoost (default) or Neural Net (LSTM).
     Fetches latest daily/weekly data, constructs feature row,
     and returns regime classification with freshness metadata.
     """
@@ -220,6 +220,8 @@ async def get_nowcast():
         result = run_nowcast(
             fred_monthly=firm.fred_data,
             classifier=firm.classifier,
+            model=model,
+            neural_classifier=getattr(firm, "neural_classifier", None),
         )
 
         # Add comparison with official model
