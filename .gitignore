@@ -24,6 +24,7 @@ logs/latest_report.json
 
 # IDE
 .idea/
+.claude/
 
 # OS
 .DS_Store
