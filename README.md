@@ -1,7 +1,7 @@
 # Market Intelligence Firm
 ### Multi-Manager Investment Decision Platform
 
-A fully ML-driven economic regime classification and asset allocation system built on an ensemble of HMM + GMM + XGBoost, with a FastAPI dashboard for real-time monitoring.
+A fully ML-driven economic regime classification and asset allocation system built on an ensemble of HMM + GMM + XGBoost, with an independent LSTM neural network classifier and a FastAPI dashboard for real-time monitoring.
 
 ---
 
@@ -18,6 +18,8 @@ market_intelligence_firm/
 │   └── cache/                 # Cached data files (auto-generated)
 ├── models/
 │   ├── regime_classifier.py   # Ensemble HMM + GMM + XGBoost
+│   ├── neural_regime_classifier.py  # LSTM neural net (display-only)
+│   ├── feature_registry.py    # Base (24) + experimental (4) feature management
 │   ├── feedback.py            # Self-optimizing feedback loop
 │   └── saved/                 # Persisted trained models + params
 ├── agents/
@@ -149,9 +151,16 @@ Weights are calibrated via time-series cross-validation. States from unsupervise
 | Shiller CAPE | 1871–present | Monthly |
 | Yahoo Finance | 30+ ETFs | Daily → Monthly |
 
-### Features (22+)
+### Features
 
-Yield curve spreads, credit spreads, unemployment dynamics, industrial production growth, CPI inflation, housing momentum, payroll growth, consumer sentiment, initial claims, Fed funds trajectory, M2 growth, S&P momentum, VIX, CAPE ratio + z-score.
+**24 Base Features** (used by ensemble + neural net):
+Yield curve spreads (10Y-2Y, 10Y-3M), credit spread + 3M change, unemployment rate + 3M/12M change, industrial production YoY + MoM, CPI YoY, housing starts YoY, payrolls YoY + MoM, consumer sentiment + change, initial claims 4-week change, fed funds + 12M change, M2 YoY, S&P 500 YoY + 3M momentum, VIX, CAPE + z-score.
+
+**4 Experimental Features** (neural net only):
+- `oil_yoy` — WTI Crude Oil YoY % change (FRED DCOILWTICO / Yahoo CL=F fallback)
+- `permit_yoy` — Building Permits YoY % change (FRED PERMIT)
+- `ahe_yoy` — Average Hourly Earnings YoY % change (FRED CES0500000003)
+- `lei_yoy` — Conference Board Leading Economic Index YoY % change (FRED USSLIND)
 
 ---
 
@@ -168,7 +177,7 @@ Yield curve spreads, credit spreads, unemployment dynamics, industrial productio
 | GET | `/api/backtest` | Backtest results |
 | GET | `/api/transition` | Transition probability matrix |
 | GET | `/api/confidence` | Model confidence/disagreement |
-| GET | `/api/nowcast` | Real-time nowcast (XGBoost only) |
+| GET | `/api/nowcast` | Real-time nowcast (XGBoost or Neural Net via `?model=neural_net`) |
 | POST | `/api/refresh` | Manual data refresh (inference) |
 | POST | `/api/retrain` | Force full retrain |
 | GET | `/api/health` | Health check |
@@ -230,6 +239,47 @@ All configuration lives in `config/settings.py`:
 
 ## Version History
 
+### v4.0 — LSTM Neural Regime Classifier + LEI Signal (March 22, 2026)
+
+**Neural Net Classifier (`models/neural_regime_classifier.py`)**
+- Independent PyTorch LSTM neural network — display-only, does not affect ensemble or portfolio allocations
+- Architecture: LSTM (32 hidden, 1 layer, unidirectional) + Temporal Attention + Linear classifier (8,702 parameters)
+- 24-month sequence length (2 years of lookback per prediction)
+- 28 features: 24 base (shared with XGBoost) + 4 experimental (neural net only)
+- Training: CrossEntropyLoss with sqrt class weights, label smoothing (0.05), AdamW optimizer, CosineAnnealingWarmRestarts schedule
+- Temporal oversampling of minority classes (2x max with Gaussian noise augmentation)
+- Early stopping on combined metric (70% raw accuracy + 30% balanced accuracy)
+- Gradient-based feature importance via attention weights
+
+**Feature Registry (`models/feature_registry.py`)**
+- Manages base vs experimental feature sets
+- Experimental features computed from FRED data with Yahoo Finance fallback for oil prices
+- Conference Board LEI (USSLIND) added as leading indicator — AUC 0.97 for recession prediction per Chicago Fed research
+
+**Integration**
+- `main.py` Step 4b: trains neural net after ensemble (non-blocking on failure)
+- `agents/economic_manager.py`: displays neural net regime call alongside ensemble vote
+- `data/nowcast.py`: neural net nowcast with full 28-feature support (select via dashboard dropdown)
+- `dashboard/index.html`: model selector in nowcast panel (XGBoost / Neural Net)
+
+**Baseline KPIs**
+- Neural net: 79.5% overall val accuracy, 25.0% balanced accuracy
+- Ensemble: 89.7% ground truth accuracy (unchanged)
+- Backtest: Sharpe 1.08, MaxDD -15.9% (unchanged)
+
+### v3.0 — Backtest + Nowcast Improvements (March 21, 2026)
+
+**Backtest Engine**
+- Walk-forward backtest with proper temporal splits and NaN handling in classifier
+- Fixed StandardScaler empty array issue on early splits
+
+**Nowcast Enhancements**
+- Added withholding tax signal to nowcast
+- Optimizer parameter persistence via .gitignore
+
+**Experimental (reverted)**
+- Forward-shifted pre-recession Slowdown labels with optimizer-tuned lead window (added then reverted due to instability)
+
 ### v2.0 — Dashboard Redesign + Nowcast + Stability (March 17, 2026)
 
 **Nowcast Module (`data/nowcast.py`)**
@@ -277,14 +327,14 @@ All configuration lives in `config/settings.py`:
 - 91% ground truth accuracy against NBER recession history
 - Confidence cap fix for 2001 recession detection
 
-### Planned — v3.0
+### Planned — v5.0
 
-- Add ISM Manufacturing PMI, initial claims level, continued claims as new features (27 total)
-- Retrain XGBoost with expanded feature set
-- Recency-weighted scoring (weight recent decades more heavily in optimizer)
-- Transition detection scoring (penalize late regime change calls)
+- Reduce neural net to binary (Expansion vs Non-Expansion) or 3-class classification to address class imbalance
+- Regression-based economic health score as alternative to categorical classification
+- Add excess bond premium, corporate profits as experimental leading indicators
+- Remove lagging experimental features (ahe_yoy) if they don't improve accuracy
 - Connect dashboard weight sliders to backend for live recalibration
-- Fix backtest splits 0-3 (StandardScaler empty array issue)
+- Recency-weighted scoring (weight recent decades more heavily in optimizer)
 
 ---
 
