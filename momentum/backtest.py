@@ -3,11 +3,16 @@ Cross-Sectional Momentum Backtest
 ===================================
 Monthly rebalancing on 12-1 momentum signal across S&P 500 constituents.
 Universe is point-in-time accurate using sp500_ticker_start_end.csv.
-Equal-weight top-50. Gross returns only.
 
 v2 additions:
-  - 200-day MA regime filter: moves to IEF when SPY is below 200-day MA
+  - 200-day MA regime filter: moves to IEF (or cash) when SPY is below 200-day MA
   - FMP fundamental screener: filters by YoY revenue growth before ranking
+  - Volatility-adjusted position sizing (inverse-vol weights)
+  - Positive momentum filter
+  - Transaction cost model (10 bps per traded position)
+  - Holdings history with per-stock returns, added/dropped diffs
+  - Comparison simulations: cash vs bonds, equal-weight vs vol-adjusted
+  - Benchmarks: SPY buy-and-hold, equal-weight S&P 500
 """
 import logging
 from datetime import datetime
@@ -29,7 +34,6 @@ BATCH_SIZE = 200
 
 
 def _get_cache_path(start: str, end: str):
-    # Cache is keyed by date range so different windows never collide.
     start_key = start[:7].replace("-", "")
     end_key = end[:7].replace("-", "")
     return DATA_DIR / f"momentum_prices_{start_key}_{end_key}.pkl"
@@ -120,8 +124,16 @@ def run_single_backtest(
     spy_daily: Optional[pd.Series] = None,
     growth_map: Optional[dict] = None,
     revenue_threshold: float = REVENUE_GROWTH_THRESHOLD,
+    use_bonds: bool = True,
+    vol_adjusted: bool = True,
 ) -> Dict:
-    """Run cross-sectional momentum backtest for the given lookback window."""
+    """
+    Run cross-sectional momentum backtest for the given lookback window.
+
+    Args:
+        use_bonds: True = move to IEF when SPY < 200d MA. False = hold cash (0% return).
+        vol_adjusted: True = inverse-volatility weights. False = equal weight.
+    """
     end_date = prices.index[-1]
     start_date = end_date - pd.DateOffset(years=years)
 
@@ -137,7 +149,8 @@ def run_single_backtest(
     holdings_history = []
     months_in_ief = 0
     months_in_stocks = 0
-    prev_holdings: set = set()  # tracks last month's positions for tx cost
+    months_in_cash = 0
+    prev_holdings: set = set()
 
     for rebal_date in rebalance_dates:
         future = monthly_returns.index[monthly_returns.index > rebal_date]
@@ -147,16 +160,47 @@ def run_single_backtest(
 
         # ── 200-day MA regime filter ──────────────────────────────────────
         if spy_daily is not None and not is_above_200d_ma(rebal_date, spy_daily):
-            ief_ret = monthly_returns.loc[next_date, "IEF"] if "IEF" in monthly_returns.columns else 0.0
-            if pd.isna(ief_ret):
-                ief_ret = 0.0
-            # Tx cost: if switching from stocks to IEF, charge for liquidating
-            tx_cost = (len(prev_holdings) / 50) * 0.001 if prev_holdings and prev_holdings != {"IEF"} else 0.0
-            prev_holdings = {"IEF"}
-            net_ret = float(np.clip(ief_ret, -0.40, 0.50)) - tx_cost
+            if use_bonds:
+                ief_ret = monthly_returns.loc[next_date, "IEF"] if "IEF" in monthly_returns.columns else 0.0
+                if pd.isna(ief_ret):
+                    ief_ret = 0.0
+                tx_cost = (len(prev_holdings) / 50) * 0.001 if prev_holdings and prev_holdings != {"IEF"} else 0.0
+                net_ret = float(np.clip(ief_ret, -0.40, 0.50)) - tx_cost
+
+                added_h = [] if prev_holdings == {"IEF"} else ["IEF"]
+                dropped_h = sorted(prev_holdings - {"IEF"})[:20] if prev_holdings and prev_holdings != {"IEF"} else []
+                holdings_history.append({
+                    "date": rebal_date.strftime("%Y-%m-%d"),
+                    "holdings": ["IEF"],
+                    "returns": {"IEF": round(float(np.clip(ief_ret, -0.40, 0.50)), 4)},
+                    "weights": {"IEF": 1.0},
+                    "added": added_h,
+                    "dropped": dropped_h,
+                    "in_ief": True,
+                    "in_cash": False,
+                    "portfolio_return": round(net_ret, 4),
+                })
+                prev_holdings = {"IEF"}
+                months_in_ief += 1
+            else:
+                tx_cost = (len(prev_holdings) / 50) * 0.001 if prev_holdings and prev_holdings not in [set(), {"CASH"}, {"IEF"}] else 0.0
+                dropped_h = sorted(prev_holdings - {"CASH"})[:20] if prev_holdings and prev_holdings not in [set(), {"CASH"}] else []
+                net_ret = -tx_cost
+                holdings_history.append({
+                    "date": rebal_date.strftime("%Y-%m-%d"),
+                    "holdings": ["CASH"],
+                    "returns": {},
+                    "weights": {},
+                    "added": [],
+                    "dropped": dropped_h,
+                    "in_ief": False,
+                    "in_cash": True,
+                    "portfolio_return": round(net_ret, 4),
+                })
+                prev_holdings = {"CASH"}
+                months_in_cash += 1
+
             portfolio_returns.append({"date": next_date, "return": net_ret})
-            holdings_history.append({"date": rebal_date, "holdings": ["IEF"]})
-            months_in_ief += 1
             continue
 
         # ── 12-1 momentum signal ──────────────────────────────────────────
@@ -180,54 +224,77 @@ def run_single_backtest(
 
         # ── Positive momentum filter ──────────────────────────────────────
         scores = {t: s for t, s in scores.items() if s > 0}
-
         if len(scores) < 50:
             continue
 
         # ── Revenue growth filter ─────────────────────────────────────────
         if growth_map:
             scores = apply_revenue_filter(scores, growth_map, revenue_threshold)
-
         if len(scores) < 50:
             continue
 
         top50 = sorted(scores, key=scores.__getitem__, reverse=True)[:50]
-        holdings_history.append({"date": rebal_date, "holdings": top50})
         months_in_stocks += 1
 
-        # ── Volatility-adjusted weights ───────────────────────────────────
+        # ── Next-month returns ────────────────────────────────────────────
         avail_rets = monthly_returns.loc[next_date, top50].dropna()
         avail_rets = avail_rets.clip(-0.40, 0.50)
         if len(avail_rets) < 5:
             continue
 
-        vol_start = rebal_date - pd.DateOffset(months=3)
-        vol_window = monthly_returns.loc[vol_start:rebal_date, avail_rets.index]
-        vols = {}
-        for ticker in avail_rets.index:
-            ticker_rets = vol_window[ticker].dropna()
-            if len(ticker_rets) >= 2:
-                vols[ticker] = max(float(ticker_rets.std()), 0.001)
-            else:
-                fallback = monthly_returns[ticker].dropna()
-                vols[ticker] = max(float(fallback.std()) if len(fallback) > 1 else 0.01, 0.001)
+        # ── Weights: vol-adjusted or equal ───────────────────────────────
+        if vol_adjusted:
+            vol_start = rebal_date - pd.DateOffset(months=3)
+            vol_window = monthly_returns.loc[vol_start:rebal_date, avail_rets.index]
+            vols = {}
+            for ticker in avail_rets.index:
+                ticker_rets = vol_window[ticker].dropna()
+                if len(ticker_rets) >= 2:
+                    vols[ticker] = max(float(ticker_rets.std()), 0.001)
+                else:
+                    fallback = monthly_returns[ticker].dropna()
+                    vols[ticker] = max(float(fallback.std()) if len(fallback) > 1 else 0.01, 0.001)
+            inv_vols = {t: 1.0 / v for t, v in vols.items()}
+            total_inv_vol = sum(inv_vols.values())
+            weights = pd.Series({t: iv / total_inv_vol for t, iv in inv_vols.items()})
+        else:
+            n = len(avail_rets)
+            weights = pd.Series(1.0 / n, index=avail_rets.index)
 
-        inv_vols = {t: 1.0 / v for t, v in vols.items()}
-        total_inv_vol = sum(inv_vols.values())
-        weights = pd.Series({t: iv / total_inv_vol for t, iv in inv_vols.items()})
         weighted_ret = float((avail_rets * weights).sum())
 
-        # ── Transaction cost (10bps round-trip per traded position) ───────
+        # ── Transaction cost ──────────────────────────────────────────────
         top50_set = set(top50)
         if not prev_holdings:
-            tx_cost = 0.0  # first rebalance, no prior state
-        elif prev_holdings == {"IEF"}:
-            tx_cost = 0.001  # exiting IEF: sell IEF + buy full portfolio
+            tx_cost = 0.0
+        elif prev_holdings in [{"IEF"}, {"CASH"}]:
+            tx_cost = 0.001
         else:
             n_changed = len(top50_set.symmetric_difference(prev_holdings))
             tx_cost = (n_changed / 50) * 0.001
-        prev_holdings = top50_set
 
+        # ── Holdings history entry ────────────────────────────────────────
+        prev_was_stocks = prev_holdings and prev_holdings not in [{"IEF"}, {"CASH"}]
+        added_h = sorted(top50_set - prev_holdings)[:20] if prev_was_stocks else []
+        dropped_h = sorted(prev_holdings - top50_set)[:20] if prev_was_stocks else []
+
+        rets_display = {t: round(float(avail_rets[t]), 4) for t in avail_rets.index}
+        wts_display = {t: round(float(weights[t]), 4) for t in weights.index if t in avail_rets.index}
+        # Sort holdings by return descending for display
+        top50_by_ret = sorted(top50, key=lambda t: rets_display.get(t, float("-inf")), reverse=True)
+
+        holdings_history.append({
+            "date": rebal_date.strftime("%Y-%m-%d"),
+            "holdings": top50_by_ret,
+            "returns": rets_display,
+            "weights": wts_display,
+            "added": added_h,
+            "dropped": dropped_h,
+            "in_ief": False,
+            "in_cash": False,
+            "portfolio_return": round(weighted_ret - tx_cost, 4),
+        })
+        prev_holdings = top50_set
         portfolio_returns.append({"date": next_date, "return": weighted_ret - tx_cost})
 
     if len(portfolio_returns) < 6:
@@ -249,19 +316,75 @@ def run_single_backtest(
             "values": [round(float(v), 4) for v in equity.values],
         },
         "current_holdings": current_holdings,
+        "holdings_history": holdings_history[-6:],
         "months_in_ief": months_in_ief,
         "months_in_stocks": months_in_stocks,
+        "months_in_cash": months_in_cash,
+    }
+
+
+def _spy_benchmark(prices: pd.DataFrame, years: int) -> Dict:
+    """Buy-and-hold SPY benchmark."""
+    end_date = prices.index[-1]
+    start_date = end_date - pd.DateOffset(years=years)
+    if "SPY" not in prices.columns:
+        return {"error": "SPY not in price data"}
+    spy = prices["SPY"].loc[start_date:]
+    spy_rets = spy.pct_change().dropna().clip(-0.40, 0.50)
+    if len(spy_rets) < 3:
+        return {"error": "Insufficient SPY data"}
+    equity = (1 + spy_rets).cumprod()
+    return {
+        "name": "SPY Buy & Hold",
+        "stats": _compute_stats(spy_rets, "SPY Buy & Hold"),
+        "equity_curve": {
+            "dates": [d.strftime("%Y-%m-%d") for d in equity.index],
+            "values": [round(float(v), 4) for v in equity.values],
+        },
+    }
+
+
+def _equal_weight_sp500(prices: pd.DataFrame, constituent_df: pd.DataFrame, years: int) -> Dict:
+    """Equal-weight all S&P 500 constituents, monthly rebalanced."""
+    end_date = prices.index[-1]
+    start_date = end_date - pd.DateOffset(years=years)
+    monthly_rets = prices.pct_change()
+    rebal_dates = prices.loc[start_date:].index
+
+    port_returns = []
+    for rebal_date in rebal_dates:
+        future = monthly_rets.index[monthly_rets.index > rebal_date]
+        if len(future) == 0:
+            break
+        next_date = future[0]
+        constituents = get_constituents(rebal_date, constituent_df)
+        available = [t for t in constituents if t in prices.columns]
+        if not available:
+            continue
+        rets = monthly_rets.loc[next_date, available].dropna().clip(-0.40, 0.50)
+        if len(rets) < 10:
+            continue
+        port_returns.append({"date": next_date, "return": float(rets.mean())})
+
+    if len(port_returns) < 6:
+        return {"error": "Insufficient data for equal-weight benchmark"}
+
+    ret_series = pd.DataFrame(port_returns).set_index("date")["return"].sort_index()
+    equity = (1 + ret_series).cumprod()
+    return {
+        "name": "S&P 500 Equal-Weight",
+        "stats": _compute_stats(ret_series, "S&P 500 Equal-Weight"),
+        "equity_curve": {
+            "dates": [d.strftime("%Y-%m-%d") for d in equity.index],
+            "values": [round(float(v), 4) for v in equity.values],
+        },
     }
 
 
 def run_all_backtests(end_date: str = None, revenue_threshold: float = None) -> Dict:
     """
     Main entry point. Downloads prices once for the 10Y window,
-    then runs 2Y / 5Y / 10Y backtests with regime filter and revenue screener.
-
-    Args:
-        end_date: Optional cutoff date string like "2014-12-31". Defaults to today.
-        revenue_threshold: YoY revenue growth minimum. Defaults to settings value.
+    then runs 2Y / 5Y / 10Y backtests plus comparison simulations and benchmarks.
     """
     if revenue_threshold is None:
         revenue_threshold = REVENUE_GROWTH_THRESHOLD
@@ -278,7 +401,9 @@ def run_all_backtests(end_date: str = None, revenue_threshold: float = None) -> 
     all_tickers = list(get_universe_for_window(data_start, end_dt, constituent_df))
     if "IEF" not in all_tickers:
         all_tickers.append("IEF")
-    logger.info(f"10Y universe: {len(all_tickers)} unique tickers (incl. IEF)")
+    if "SPY" not in all_tickers:
+        all_tickers.append("SPY")
+    logger.info(f"10Y universe: {len(all_tickers)} unique tickers (incl. IEF, SPY)")
 
     prices = fetch_stock_prices(
         all_tickers,
@@ -289,30 +414,70 @@ def run_all_backtests(end_date: str = None, revenue_threshold: float = None) -> 
     if prices.empty:
         return {"error": "Failed to fetch price data from Yahoo Finance"}
 
-    # Daily SPY prices — needs extra 10-month lead so the MA is computable
-    # at the very start of the backtest window
     spy_start = data_start - pd.DateOffset(months=10)
     spy_daily = fetch_spy_daily(
         spy_start.strftime("%Y-%m-%d"),
         (end_dt + pd.DateOffset(days=1)).strftime("%Y-%m-%d"),
     )
 
-    # Revenue growth map from FMP (cached 90 days, fetches up to 240 tickers/run)
     growth_map = build_growth_map(all_tickers, FMP_API_KEY) if FMP_API_KEY else {}
+    spy_d = spy_daily if not spy_daily.empty else None
+    gm = growth_map or None
 
+    # ── Primary backtests (current strategy) ─────────────────────────────
     results = {}
     for years in [2, 5, 10]:
         try:
             results[f"{years}y"] = run_single_backtest(
                 years, prices, constituent_df,
-                spy_daily=spy_daily if not spy_daily.empty else None,
-                growth_map=growth_map or None,
+                spy_daily=spy_d, growth_map=gm,
                 revenue_threshold=revenue_threshold,
+                use_bonds=True, vol_adjusted=True,
             )
         except Exception as e:
             logger.error(f"{years}Y backtest failed: {e}", exc_info=True)
             results[f"{years}y"] = {"error": str(e)}
 
+    # ── Comparison simulations ────────────────────────────────────────────
+    comparisons = {}
+    for years in [2, 5, 10]:
+        ykey = f"{years}y"
+
+        try:
+            comparisons[f"cash_{ykey}"] = run_single_backtest(
+                years, prices, constituent_df,
+                spy_daily=spy_d, growth_map=gm,
+                revenue_threshold=revenue_threshold,
+                use_bonds=False, vol_adjusted=True,
+            )
+        except Exception as e:
+            comparisons[f"cash_{ykey}"] = {"error": str(e)}
+
+        try:
+            comparisons[f"equal_wt_{ykey}"] = run_single_backtest(
+                years, prices, constituent_df,
+                spy_daily=spy_d, growth_map=gm,
+                revenue_threshold=revenue_threshold,
+                use_bonds=True, vol_adjusted=False,
+            )
+        except Exception as e:
+            comparisons[f"equal_wt_{ykey}"] = {"error": str(e)}
+
+        try:
+            comparisons[f"spy_{ykey}"] = _spy_benchmark(prices, years)
+        except Exception as e:
+            comparisons[f"spy_{ykey}"] = {"error": str(e)}
+
+        try:
+            comparisons[f"ew_sp500_{ykey}"] = _equal_weight_sp500(prices, constituent_df, years)
+        except Exception as e:
+            comparisons[f"ew_sp500_{ykey}"] = {"error": str(e)}
+
+    holdings_history = (
+        results.get("2y", {}).get("holdings_history")
+        or results.get("5y", {}).get("holdings_history")
+        or []
+    )
     current_holdings = (
         results.get("2y", {}).get("current_holdings")
         or results.get("5y", {}).get("current_holdings")
@@ -321,16 +486,17 @@ def run_all_backtests(end_date: str = None, revenue_threshold: float = None) -> 
 
     return {
         "backtests": results,
+        "comparisons": comparisons,
+        "holdings_history": holdings_history,
         "current_holdings": current_holdings,
         "currently_in_ief": current_holdings == ["IEF"],
         "universe_size": len(all_tickers),
         "revenue_threshold": revenue_threshold,
         "computed_at": datetime.now().isoformat(),
         "note": (
-            f"Gross returns. Equal-weight top-50 by 12-1 momentum. "
+            f"Gross returns. Vol-adjusted top-50 by 12-1 momentum. "
             f"200-day MA regime filter: moves to IEF when SPY < 200d MA. "
-            f"Revenue screener: {revenue_threshold:.0%} YoY growth threshold "
-            f"(hard filter if 50+ qualify, soft 1.2x weight otherwise). "
-            f"Universe: point-in-time S&P 500 constituents (1996-2026)."
+            f"Revenue screener: {revenue_threshold:.0%} YoY growth threshold. "
+            f"Universe: point-in-time S&P 500 constituents."
         ),
     }

@@ -804,13 +804,85 @@ input[type="range"]::-webkit-slider-thumb {
       <div class="chart-container chart-xl"><canvas id="momentumChart"></canvas></div>
     </div>
 
-    <!-- Current holdings -->
+    <!-- Holdings History -->
     <div class="card">
-      <div class="card-header">Current Top-50 Holdings
+      <div class="card-header">
+        Holdings History
         <span class="card-badge" id="momUniverseSize" style="background:rgba(64,144,240,0.15);color:var(--accent-blue);">-- tickers</span>
+        <select id="holdingsMonthSelect" onchange="renderHoldingsMonth()"
+          style="margin-left:auto;background:var(--bg-input);border:1px solid var(--border-bright);color:var(--text-primary);padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">
+        </select>
       </div>
-      <div id="momentumHoldings" class="ticker-grid" style="margin-bottom:12px;"></div>
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;" id="momentumNote"></div>
+
+      <!-- Defensive month banner -->
+      <div id="holdingsDefensive" style="display:none;text-align:center;padding:20px;background:rgba(128,80,232,0.08);border-radius:8px;margin-bottom:12px;">
+        <div style="font-size:16px;font-weight:600;color:var(--accent-purple);" id="holdingsDefensiveLabel">Portfolio in defensive position</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px;" id="holdingsDefensiveReturn"></div>
+      </div>
+
+      <!-- Added / Dropped summary -->
+      <div id="holdingsDiffRow" style="display:none;margin-bottom:12px;">
+        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:11px;color:var(--accent-green);font-weight:600;letter-spacing:.08em;margin-bottom:6px;">ADDED</div>
+            <div id="holdingsAdded" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--accent-red);font-weight:600;letter-spacing:.08em;margin-bottom:6px;">DROPPED</div>
+            <div id="holdingsDropped" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+        </div>
+        <div id="holdingsPortReturn" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+      </div>
+
+      <!-- Per-stock returns table -->
+      <div id="holdingsTableWrap" style="overflow-x:auto;">
+        <table id="holdingsTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">#</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">TICKER</th>
+              <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">MONTHLY RETURN</th>
+              <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">WEIGHT</th>
+              <th style="text-align:center;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="holdingsTableBody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:10px;" id="momentumNote"></div>
+    </div>
+
+    <!-- Strategy Comparisons -->
+    <div class="card">
+      <div class="card-header">
+        Strategy Comparisons
+        <div style="display:flex;gap:6px;margin-left:auto;">
+          <button id="cmpBtn2y"  onclick="setCmpWindow('2y')"  class="btn btn-primary" style="padding:3px 12px;font-size:12px;">2Y</button>
+          <button id="cmpBtn5y"  onclick="setCmpWindow('5y')"  class="btn" style="padding:3px 12px;font-size:12px;background:var(--bg-input);border:1px solid var(--border-bright);color:var(--text-secondary);">5Y</button>
+          <button id="cmpBtn10y" onclick="setCmpWindow('10y')" class="btn" style="padding:3px 12px;font-size:12px;background:var(--bg-input);border:1px solid var(--border-bright);color:var(--text-secondary);">10Y</button>
+        </div>
+      </div>
+
+      <div class="chart-container" style="height:280px;margin-bottom:16px;">
+        <canvas id="comparisonChart"></canvas>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table id="comparisonTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">STRATEGY</th>
+              <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">ANN. RETURN</th>
+              <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">VOLATILITY</th>
+              <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">SHARPE</th>
+              <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">MAX DD</th>
+              <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="comparisonTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
   </div>
@@ -836,6 +908,9 @@ let momentumLoaded = false;
 let momentumRetryTimer = null;
 let momentumCurrentEndDate = null;
 let momentumCurrentThreshold = 0.10;
+let _holdingsHistory = [];
+let _comparisonsData = {};
+let _cmpWindow = '2y';
 
 function runMomentumBacktest() {
   const val = document.getElementById('momEndDate').value;
@@ -1449,14 +1524,110 @@ function renderMomentum(data, endDate) {
   document.getElementById('momUniverseSize').textContent =
     (data.universe_size || '--') + ' unique tickers in 10Y window';
 
+  window._momentumBtData = bt;  // store for comparison chart
   renderMomentumChart(bt);
 
-  const holdings = data.current_holdings || [];
-  document.getElementById('momentumHoldings').innerHTML = holdings.length
-    ? holdings.map(t => `<div class="ticker-cell"><span class="ticker-symbol">${t}</span></div>`).join('')
-    : '<div style="color:var(--text-muted);">No holdings data</div>';
+  // ── Holdings history dropdown ─────────────────────────────────────────
+  _holdingsHistory = data.holdings_history || [];
+  const sel = document.getElementById('holdingsMonthSelect');
+  sel.innerHTML = '';
+  if (_holdingsHistory.length === 0) {
+    sel.innerHTML = '<option>No history</option>';
+  } else {
+    [..._holdingsHistory].reverse().forEach((entry, i) => {
+      const d = new Date(entry.date + 'T00:00:00');
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const opt = document.createElement('option');
+      opt.value = _holdingsHistory.length - 1 - i;
+      opt.textContent = label + (i === 0 ? ' (latest)' : '');
+      sel.appendChild(opt);
+    });
+  }
+  renderHoldingsMonth();
 
   document.getElementById('momentumNote').textContent = data.note || '';
+
+  // ── Comparison simulations ────────────────────────────────────────────
+  _comparisonsData = data.comparisons || {};
+  renderComparisonSection(_cmpWindow);
+}
+
+function renderHoldingsMonth() {
+  const sel = document.getElementById('holdingsMonthSelect');
+  const idx = parseInt(sel.value);
+  const entry = _holdingsHistory[idx];
+
+  const defensive = document.getElementById('holdingsDefensive');
+  const diffRow   = document.getElementById('holdingsDiffRow');
+  const tableWrap = document.getElementById('holdingsTableWrap');
+
+  if (!entry) {
+    defensive.style.display = 'none';
+    diffRow.style.display = 'none';
+    tableWrap.style.display = 'none';
+    return;
+  }
+
+  if (entry.in_ief || entry.in_cash) {
+    defensive.style.display = '';
+    diffRow.style.display = 'none';
+    tableWrap.style.display = 'none';
+    const asset = entry.in_ief ? 'IEF (7–10yr Treasuries)' : 'Cash';
+    document.getElementById('holdingsDefensiveLabel').textContent =
+      `Portfolio in defensive position — ${asset}`;
+    const ret = entry.returns && entry.returns['IEF'] != null
+      ? `IEF return that month: ${(entry.returns['IEF']*100).toFixed(2)}%`
+      : 'Holding cash — 0% return';
+    document.getElementById('holdingsDefensiveReturn').textContent = ret;
+    return;
+  }
+
+  defensive.style.display = 'none';
+  diffRow.style.display = '';
+  tableWrap.style.display = '';
+
+  // Added / dropped chips
+  const added   = entry.added   || [];
+  const dropped = entry.dropped || [];
+  document.getElementById('holdingsAdded').innerHTML = added.length
+    ? added.map(t => `<span style="background:rgba(45,212,168,0.12);color:var(--accent-green);padding:2px 8px;border-radius:4px;font-size:12px;font-family:var(--font-mono);">+${t}</span>`).join('')
+    : '<span style="color:var(--text-muted);font-size:12px;">None (first rebalance shown)</span>';
+  document.getElementById('holdingsDropped').innerHTML = dropped.length
+    ? dropped.map(t => `<span style="background:rgba(240,72,72,0.12);color:var(--accent-red);padding:2px 8px;border-radius:4px;font-size:12px;font-family:var(--font-mono);">−${t}</span>`).join('')
+    : '<span style="color:var(--text-muted);font-size:12px;">None</span>';
+
+  const portRet = entry.portfolio_return;
+  document.getElementById('holdingsPortReturn').textContent =
+    portRet != null
+      ? `Portfolio return that month: ${portRet >= 0 ? '+' : ''}${(portRet*100).toFixed(2)}%  ·  ${entry.holdings.length} positions`
+      : `${entry.holdings.length} positions`;
+
+  // Build table — holdings already sorted by return desc from backend
+  const returns = entry.returns || {};
+  const weights = entry.weights || {};
+  const addedSet   = new Set(entry.added   || []);
+  const droppedSet = new Set(entry.dropped || []);
+
+  const tbody = document.getElementById('holdingsTableBody');
+  tbody.innerHTML = entry.holdings.map((ticker, i) => {
+    const ret = returns[ticker];
+    const wt  = weights[ticker];
+    const retStr = ret != null ? `${ret >= 0 ? '+' : ''}${(ret*100).toFixed(2)}%` : '—';
+    const wtStr  = wt  != null ? `${(wt*100).toFixed(1)}%` : '—';
+    const retColor = ret == null ? '#586580' : ret >= 0 ? '#2dd4a8' : '#f04848';
+
+    let badge = '';
+    if (addedSet.has(ticker))   badge = `<span style="background:rgba(45,212,168,0.12);color:var(--accent-green);padding:1px 6px;border-radius:3px;font-size:11px;">NEW</span>`;
+    else if (droppedSet.has(ticker)) badge = `<span style="background:rgba(240,72,72,0.12);color:var(--accent-red);padding:1px 6px;border-radius:3px;font-size:11px;">EXIT</span>`;
+
+    return `<tr style="border-bottom:1px solid rgba(28,40,64,0.6);${i%2===1?'background:rgba(14,20,32,0.3)':''}">
+      <td style="padding:5px 8px;color:var(--text-muted);font-size:12px;">${i+1}</td>
+      <td style="padding:5px 8px;font-family:var(--font-mono);font-weight:600;color:var(--text-primary);">${ticker}</td>
+      <td style="padding:5px 8px;text-align:right;font-family:var(--font-mono);color:${retColor};">${retStr}</td>
+      <td style="padding:5px 8px;text-align:right;color:var(--text-secondary);">${wtStr}</td>
+      <td style="padding:5px 8px;text-align:center;">${badge}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderMomentumChart(bt) {
@@ -1506,6 +1677,133 @@ function renderMomentumChart(bt) {
       },
     },
   });
+}
+
+// ── Comparison simulations ───────────────────────────────────────────────
+function setCmpWindow(w) {
+  _cmpWindow = w;
+  ['2y','5y','10y'].forEach(k => {
+    const btn = document.getElementById('cmpBtn' + k);
+    if (k === w) {
+      btn.classList.add('btn-primary');
+      btn.style.background = '';
+      btn.style.border = '';
+      btn.style.color = '';
+    } else {
+      btn.classList.remove('btn-primary');
+      btn.style.background = 'var(--bg-input)';
+      btn.style.border = '1px solid var(--border-bright)';
+      btn.style.color = 'var(--text-secondary)';
+    }
+  });
+  renderComparisonSection(w);
+}
+
+function renderComparisonSection(ykey) {
+  const cmp = _comparisonsData;
+
+  // Strategy definitions: [key_prefix, label, color]
+  const strategies = [
+    { key: null,          label: 'Momentum (vol-adj, IEF)',  color: '#2dd4a8', main: true },
+    { key: 'cash',        label: 'Momentum (cash)',           color: '#f0a030' },
+    { key: 'equal_wt',    label: 'Momentum (equal-wt)',       color: '#4090f0' },
+    { key: 'spy',         label: 'SPY Buy & Hold',            color: '#8b9ab8' },
+    { key: 'ew_sp500',    label: 'S&P 500 Equal-Weight',      color: '#586580' },
+  ];
+
+  // Build equity curve chart
+  if (charts.comparison) { charts.comparison.destroy(); charts.comparison = null; }
+
+  const toMap = (curve) => {
+    const m = {};
+    if (curve && curve.dates) curve.dates.forEach((d, i) => { m[d] = curve.values[i]; });
+    return m;
+  };
+
+  // Collect all dates across all strategies
+  const allDateSet = new Set();
+  strategies.forEach(s => {
+    const src = s.main
+      ? (window._momentumBtData || {})
+      : (cmp[`${s.key}_${ykey}`] || {});
+    const curve = s.main
+      ? (src[ykey] || {}).equity_curve
+      : src.equity_curve;
+    if (curve && curve.dates) curve.dates.forEach(d => allDateSet.add(d));
+  });
+  const allDates = [...allDateSet].sort();
+
+  if (allDates.length > 0) {
+    const datasets = strategies.map(s => {
+      const src = s.main
+        ? (window._momentumBtData || {})
+        : (cmp[`${s.key}_${ykey}`] || {});
+      const curve = s.main
+        ? (src[ykey] || {}).equity_curve
+        : src.equity_curve;
+      const m = toMap(curve);
+      return {
+        label: s.label,
+        data: allDates.map(d => m[d] ?? null),
+        borderColor: s.color,
+        borderWidth: s.main ? 2.5 : 1.5,
+        pointRadius: 0,
+        fill: false,
+        spanGaps: false,
+        borderDash: s.key === 'spy' || s.key === 'ew_sp500' ? [4, 3] : [],
+      };
+    });
+
+    charts.comparison = new Chart(document.getElementById('comparisonChart'), {
+      type: 'line',
+      data: { labels: allDates.map(d => d.slice(0, 7)), datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 11 }, boxWidth: 24 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.parsed.y != null
+                ? `${ctx.dataset.label}: ${((ctx.parsed.y - 1) * 100).toFixed(1)}%`
+                : null,
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 10 }, grid: { display: false } },
+          y: {
+            ticks: { color: '#586580', font: { size: 10 }, callback: v => v.toFixed(2) + 'x' },
+            grid: { color: '#1c2840' },
+          },
+        },
+      },
+    });
+  }
+
+  // Build stats table
+  const tbody = document.getElementById('comparisonTableBody');
+  const fmt = (v, pct=true, dp=1) => v != null ? `${pct?(v*100).toFixed(dp)+'%':v.toFixed(dp)}` : '—';
+  const colorRet = v => v == null ? '#586580' : v >= 0.10 ? '#2dd4a8' : v >= 0 ? '#a0c090' : '#f04848';
+
+  tbody.innerHTML = strategies.map((s, si) => {
+    const src = s.main
+      ? (window._momentumBtData || {})
+      : (cmp[`${s.key}_${ykey}`] || {});
+    const stats = s.main
+      ? ((src[ykey] || {}).stats || {})
+      : (src.stats || {});
+    const ok = stats.annualized_return != null;
+
+    return `<tr style="border-bottom:1px solid rgba(28,40,64,0.6);${si%2===1?'background:rgba(14,20,32,0.3)':''}${s.main?'font-weight:600;':''}" >
+      <td style="padding:6px 10px;color:${s.color};">${s.label}${s.main ? ' ★' : ''}</td>
+      <td style="padding:6px 10px;text-align:right;color:${colorRet(ok?stats.annualized_return:null)};">${ok ? fmt(stats.annualized_return) : '—'}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);">${ok ? fmt(stats.annualized_volatility) : '—'}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);">${ok ? stats.sharpe_ratio.toFixed(2) : '—'}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--accent-red);">${ok ? fmt(stats.max_drawdown) : '—'}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);">${ok ? fmt(stats.total_return) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ─── Initial load + polling ───
