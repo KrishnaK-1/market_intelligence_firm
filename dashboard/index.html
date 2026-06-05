@@ -517,6 +517,7 @@ input[type="range"]::-webkit-slider-thumb {
   <button class="tab-btn" onclick="switchTab('portfolio')">Portfolio & Allocations</button>
   <button class="tab-btn" onclick="switchTab('history')">Historical Analysis</button>
   <button class="tab-btn" onclick="switchTab('diagnostics')">Model Diagnostics</button>
+  <button class="tab-btn" onclick="switchTab('momentum')">Momentum Strategy</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -727,6 +728,95 @@ input[type="range"]::-webkit-slider-thumb {
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIEW 5: MOMENTUM STRATEGY                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-momentum" class="tab-content">
+
+  <!-- Loading state -->
+  <div id="momentumLoading" class="card" style="text-align:center;padding:48px 32px;">
+    <div style="font-size:20px;color:var(--text-secondary);margin-bottom:10px;">Computing momentum backtest...</div>
+    <div style="font-size:14px;color:var(--text-muted);">Downloading S&P 500 price history. First run takes 2–5 minutes.</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-top:8px;" id="momentumRetryMsg"></div>
+  </div>
+
+  <!-- Error state -->
+  <div id="momentumError" class="card" style="display:none;text-align:center;padding:40px;">
+    <div style="color:var(--accent-red);font-size:16px;" id="momentumErrorMsg">Error loading momentum data.</div>
+    <button class="btn btn-primary" onclick="momentumLoaded=false;fetchMomentum(momentumCurrentEndDate, momentumCurrentThreshold);" style="margin-top:16px;">Retry</button>
+  </div>
+
+  <!-- Results (hidden until loaded) -->
+  <div id="momentumResults" style="display:none;">
+
+    <!-- Controls -->
+    <div class="card" style="padding:14px 20px;margin-bottom:0;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="color:var(--text-secondary);font-size:12px;font-weight:600;letter-spacing:.08em;">BACKTEST END DATE</span>
+        <input type="date" id="momEndDate" style="background:var(--bg-card);border:1px solid var(--border-bright);color:var(--text-primary);padding:5px 10px;border-radius:6px;font-size:13px;" />
+        <span style="color:var(--text-secondary);font-size:12px;font-weight:600;letter-spacing:.08em;margin-left:8px;">REVENUE GROWTH THRESHOLD</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="momThreshold" value="10" min="0" max="100" step="1"
+            style="background:var(--bg-card);border:1px solid var(--border-bright);color:var(--text-primary);padding:5px 8px;border-radius:6px;font-size:13px;width:64px;text-align:center;" />
+          <span style="color:var(--text-muted);font-size:13px;">%</span>
+        </div>
+        <button class="btn btn-primary" onclick="runMomentumBacktest()" style="padding:5px 16px;font-size:13px;">Run</button>
+        <span style="color:var(--text-muted);font-size:12px;">Leave date blank to use today</span>
+        <span id="momDateLabel" style="color:var(--accent-cyan);font-size:12px;margin-left:auto;"></span>
+      </div>
+    </div>
+
+    <!-- 2Y / 5Y / 10Y stat cards -->
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header">2-Year Backtest <span class="card-badge" style="background:rgba(45,212,168,0.15);color:var(--accent-green);">~24 months</span></div>
+        <div class="grid-2" style="margin:8px 0;">
+          <div class="stat-box"><div class="stat-value" id="mom2yReturn" style="color:var(--accent-green);">--</div><div class="stat-label">Annual Return</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom2ySharpe" style="color:var(--accent-cyan);">--</div><div class="stat-label">Sharpe Ratio</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom2yDrawdown" style="color:var(--accent-red);">--</div><div class="stat-label">Max Drawdown</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom2yTotal" style="color:var(--accent-amber);">--</div><div class="stat-label">Total Return</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">5-Year Backtest <span class="card-badge" style="background:rgba(64,144,240,0.15);color:var(--accent-blue);">~60 months</span></div>
+        <div class="grid-2" style="margin:8px 0;">
+          <div class="stat-box"><div class="stat-value" id="mom5yReturn" style="color:var(--accent-green);">--</div><div class="stat-label">Annual Return</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom5ySharpe" style="color:var(--accent-cyan);">--</div><div class="stat-label">Sharpe Ratio</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom5yDrawdown" style="color:var(--accent-red);">--</div><div class="stat-label">Max Drawdown</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom5yTotal" style="color:var(--accent-amber);">--</div><div class="stat-label">Total Return</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">10-Year Backtest <span class="card-badge" style="background:rgba(128,80,232,0.15);color:var(--accent-purple);">~120 months</span></div>
+        <div class="grid-2" style="margin:8px 0;">
+          <div class="stat-box"><div class="stat-value" id="mom10yReturn" style="color:var(--accent-green);">--</div><div class="stat-label">Annual Return</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom10ySharpe" style="color:var(--accent-cyan);">--</div><div class="stat-label">Sharpe Ratio</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom10yDrawdown" style="color:var(--accent-red);">--</div><div class="stat-label">Max Drawdown</div></div>
+          <div class="stat-box"><div class="stat-value" id="mom10yTotal" style="color:var(--accent-amber);">--</div><div class="stat-label">Total Return</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Equity curve -->
+    <div class="card">
+      <div class="card-header">Cumulative Portfolio Value (Equal-Weight Top-50, Monthly Rebalance)
+        <span class="card-badge" id="momComputedAt" style="background:rgba(32,192,224,0.15);color:var(--accent-cyan);">--</span>
+      </div>
+      <div class="chart-container chart-xl"><canvas id="momentumChart"></canvas></div>
+    </div>
+
+    <!-- Current holdings -->
+    <div class="card">
+      <div class="card-header">Current Top-50 Holdings
+        <span class="card-badge" id="momUniverseSize" style="background:rgba(64,144,240,0.15);color:var(--accent-blue);">-- tickers</span>
+      </div>
+      <div id="momentumHoldings" class="ticker-grid" style="margin-bottom:12px;"></div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;" id="momentumNote"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- JAVASCRIPT                                                 -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <script>
@@ -742,6 +832,23 @@ const charts = {};
 let reportData = null;
 let calibratedWeights = {};
 let lastSliderSource = null;
+let momentumLoaded = false;
+let momentumRetryTimer = null;
+let momentumCurrentEndDate = null;
+let momentumCurrentThreshold = 0.10;
+
+function runMomentumBacktest() {
+  const val = document.getElementById('momEndDate').value;
+  const thresh = parseFloat(document.getElementById('momThreshold').value) || 10;
+  momentumCurrentEndDate = val || null;
+  momentumCurrentThreshold = thresh / 100;
+  momentumLoaded = false;
+  if (momentumRetryTimer) { clearTimeout(momentumRetryTimer); momentumRetryTimer = null; }
+  document.getElementById('momentumLoading').style.display = '';
+  document.getElementById('momentumResults').style.display = 'none';
+  document.getElementById('momentumError').style.display = 'none';
+  fetchMomentum(momentumCurrentEndDate, momentumCurrentThreshold);
+}
 
 // ─── Tab switching ───
 function switchTab(tabId) {
@@ -749,8 +856,8 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tabId).classList.add('active');
   event.target.classList.add('active');
-  // Resize charts when tab becomes visible
   setTimeout(() => { Object.values(charts).forEach(c => c && c.resize && c.resize()); }, 50);
+  if (tabId === 'momentum' && !momentumLoaded) fetchMomentum(momentumCurrentEndDate, momentumCurrentThreshold);
 }
 
 // ─── Weight sliders ───
@@ -1282,6 +1389,123 @@ function renderNowcast(nc) {
 
   html += `<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:10px;">Last updated: ${new Date(nc.timestamp).toLocaleString()} | Auto-refreshes every 15 min</div>`;
   document.getElementById('nowcastContent').innerHTML = html;
+}
+
+// ─── Momentum Strategy ───
+async function fetchMomentum(endDate, threshold) {
+  const rt = (threshold !== undefined ? threshold : momentumCurrentThreshold) || 0.10;
+  let url = endDate ? `/api/momentum?end_date=${endDate}&revenue_threshold=${rt}` : `/api/momentum?revenue_threshold=${rt}`;
+  try {
+    const resp = await fetch(url);
+    if (resp.status === 202) {
+      const data = await resp.json();
+      document.getElementById('momentumLoading').style.display = '';
+      document.getElementById('momentumResults').style.display = 'none';
+      document.getElementById('momentumError').style.display = 'none';
+      document.getElementById('momentumRetryMsg').textContent = 'Auto-retrying in 15 seconds...';
+      if (!momentumRetryTimer) {
+        momentumRetryTimer = setTimeout(() => { momentumRetryTimer = null; fetchMomentum(endDate); }, 15000);
+      }
+      return;
+    }
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    if (momentumRetryTimer) { clearTimeout(momentumRetryTimer); momentumRetryTimer = null; }
+    momentumLoaded = true;
+    renderMomentum(data, endDate);
+  } catch (e) {
+    document.getElementById('momentumLoading').style.display = 'none';
+    document.getElementById('momentumResults').style.display = 'none';
+    document.getElementById('momentumError').style.display = '';
+    document.getElementById('momentumErrorMsg').textContent = 'Error: ' + e.message;
+  }
+}
+
+function renderMomentum(data, endDate) {
+  document.getElementById('momentumLoading').style.display = 'none';
+  document.getElementById('momentumError').style.display = 'none';
+  document.getElementById('momentumResults').style.display = '';
+  document.getElementById('momDateLabel').textContent = endDate ? `Showing data through ${endDate}` : 'Showing live data (today)';
+
+  const bt = data.backtests || {};
+  const windows = {
+    '2y':  { ret: 'mom2yReturn',  sharpe: 'mom2ySharpe',  dd: 'mom2yDrawdown',  total: 'mom2yTotal'  },
+    '5y':  { ret: 'mom5yReturn',  sharpe: 'mom5ySharpe',  dd: 'mom5yDrawdown',  total: 'mom5yTotal'  },
+    '10y': { ret: 'mom10yReturn', sharpe: 'mom10ySharpe', dd: 'mom10yDrawdown', total: 'mom10yTotal' },
+  };
+  Object.entries(windows).forEach(([key, ids]) => {
+    const w = bt[key] || {};
+    const s = w.stats || {};
+    const ok = !w.error && s.annualized_return != null;
+    document.getElementById(ids.ret).textContent     = ok ? ((s.annualized_return||0)*100).toFixed(1)+'%' : 'N/A';
+    document.getElementById(ids.sharpe).textContent  = ok ? (s.sharpe_ratio||0).toFixed(2) : 'N/A';
+    document.getElementById(ids.dd).textContent      = ok ? ((s.max_drawdown||0)*100).toFixed(1)+'%' : 'N/A';
+    document.getElementById(ids.total).textContent   = ok ? ((s.total_return||0)*100).toFixed(1)+'%' : 'N/A';
+  });
+
+  document.getElementById('momComputedAt').textContent =
+    data.computed_at ? 'Computed ' + new Date(data.computed_at).toLocaleString() : '--';
+  document.getElementById('momUniverseSize').textContent =
+    (data.universe_size || '--') + ' unique tickers in 10Y window';
+
+  renderMomentumChart(bt);
+
+  const holdings = data.current_holdings || [];
+  document.getElementById('momentumHoldings').innerHTML = holdings.length
+    ? holdings.map(t => `<div class="ticker-cell"><span class="ticker-symbol">${t}</span></div>`).join('')
+    : '<div style="color:var(--text-muted);">No holdings data</div>';
+
+  document.getElementById('momentumNote').textContent = data.note || '';
+}
+
+function renderMomentumChart(bt) {
+  if (charts.momentum) { charts.momentum.destroy(); charts.momentum = null; }
+
+  const toMap = (curve) => {
+    const m = {};
+    if (curve && curve.dates) curve.dates.forEach((d, i) => { m[d] = curve.values[i]; });
+    return m;
+  };
+  const map10 = toMap((bt['10y'] || {}).equity_curve);
+  const map5  = toMap((bt['5y']  || {}).equity_curve);
+  const map2  = toMap((bt['2y']  || {}).equity_curve);
+
+  const allDates = [...new Set([...Object.keys(map10), ...Object.keys(map5), ...Object.keys(map2)])].sort();
+  if (allDates.length === 0) return;
+
+  charts.momentum = new Chart(document.getElementById('momentumChart'), {
+    type: 'line',
+    data: {
+      labels: allDates.map(d => d.slice(0, 7)),
+      datasets: [
+        { label: '10Y', data: allDates.map(d => map10[d] ?? null), borderColor: '#8050e8', borderWidth: 2, pointRadius: 0, fill: false, spanGaps: false },
+        { label: '5Y',  data: allDates.map(d => map5[d]  ?? null), borderColor: '#4090f0', borderWidth: 2, pointRadius: 0, fill: false, spanGaps: false },
+        { label: '2Y',  data: allDates.map(d => map2[d]  ?? null), borderColor: '#2dd4a8', borderWidth: 2, pointRadius: 0, fill: false, spanGaps: false },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y != null
+              ? `${ctx.dataset.label}: ${((ctx.parsed.y - 1) * 100).toFixed(1)}% gain`
+              : null,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } },
+        y: {
+          ticks: { color: '#586580', font: { size: 10 }, callback: v => v.toFixed(2) + 'x' },
+          grid: { color: '#1c2840' },
+        },
+      },
+    },
+  });
 }
 
 // ─── Initial load + polling ───

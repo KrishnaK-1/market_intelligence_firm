@@ -49,6 +49,22 @@ firm = MarketIntelligenceFirm()
 latest_report: Optional[dict] = None
 is_running = False
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+momentum_cache: dict = {}        # keyed by end_date string, or "live" for today
+momentum_loading_keys: set = set()
+
+
+def _run_momentum_sync(cache_key: str, end_date_arg: Optional[str], revenue_threshold: float):
+    """Blocking background task: downloads prices and runs 2/5/10Y momentum backtests."""
+    global momentum_cache, momentum_loading_keys
+    try:
+        from momentum.backtest import run_all_backtests
+        momentum_cache[cache_key] = run_all_backtests(end_date_arg, revenue_threshold=revenue_threshold)
+        logger.info(f"Momentum backtest complete ({cache_key})")
+    except Exception as e:
+        logger.error(f"Momentum backtest failed ({cache_key}): {e}")
+        momentum_cache[cache_key] = {"error": str(e)}
+    finally:
+        momentum_loading_keys.discard(cache_key)
 
 
 async def scheduled_refresh():
@@ -182,6 +198,36 @@ async def get_backtest():
     if latest_report is None:
         raise HTTPException(503, "Pipeline has not run yet")
     return {"backtest": latest_report.get("backtest")}
+
+
+@app.get("/api/momentum")
+async def get_momentum(
+    background_tasks: BackgroundTasks,
+    end_date: Optional[str] = None,
+    revenue_threshold: float = 0.10,
+):
+    """
+    Cross-sectional momentum backtest (2Y / 5Y / 10Y).
+    Pass ?end_date=YYYY-MM-DD for historical cutoff.
+    Pass ?revenue_threshold=0.15 to override the default 10% growth filter.
+    Each unique (end_date, revenue_threshold) combination is cached separately.
+    """
+    cache_key = f"{end_date or 'live'}__rt{int(revenue_threshold * 100)}"
+    if cache_key in momentum_cache:
+        return JSONResponse(content=json.loads(json.dumps(momentum_cache[cache_key], default=str)))
+    if cache_key not in momentum_loading_keys:
+        momentum_loading_keys.add(cache_key)
+        background_tasks.add_task(_run_momentum_sync, cache_key, end_date, revenue_threshold)
+    return JSONResponse(
+        status_code=202,
+        content={
+            "status": "loading",
+            "message": (
+                "Momentum backtest is computing. "
+                "Downloading S&P 500 price history — takes 2-5 minutes on first run."
+            ),
+        },
+    )
 
 
 @app.get("/api/transition")

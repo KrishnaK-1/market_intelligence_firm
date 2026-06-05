@@ -19,6 +19,10 @@ for d in [DATA_DIR, MODEL_DIR, LOG_DIR]:
 # ── API Keys ───────────────────────────────────────────────────────────
 FRED_API_KEY = os.getenv("FRED_API_KEY", "YOUR_FRED_KEY_HERE")
 BLS_API_KEY = os.getenv("BLS_API_KEY", "YOUR_BLS_KEY_HERE")
+FMP_API_KEY = os.getenv("FMP_API_KEY", "")
+
+# ── Momentum Strategy ──────────────────────────────────────────────────
+REVENUE_GROWTH_THRESHOLD = 0.10  # 10% YoY revenue growth default (adjustable)
 
 # ── Regime Model ───────────────────────────────────────────────────────
 N_REGIMES = 5  # expansion, slowdown, contraction, recovery, crisis
