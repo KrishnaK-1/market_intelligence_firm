@@ -323,14 +323,20 @@ def run_single_backtest(
     }
 
 
-def _spy_benchmark(prices: pd.DataFrame, years: int) -> Dict:
-    """Buy-and-hold SPY benchmark."""
+def _spy_benchmark(prices: pd.DataFrame, years: int, spy_daily: Optional[pd.Series] = None) -> Dict:
+    """Buy-and-hold SPY benchmark. Uses monthly prices if cached, otherwise resamples daily data."""
     end_date = prices.index[-1]
     start_date = end_date - pd.DateOffset(years=years)
-    if "SPY" not in prices.columns:
-        return {"error": "SPY not in price data"}
-    spy = prices["SPY"].loc[start_date:]
-    spy_rets = spy.pct_change().dropna().clip(-0.40, 0.50)
+
+    if "SPY" in prices.columns:
+        spy_monthly = prices["SPY"].loc[start_date:]
+    elif spy_daily is not None and not spy_daily.empty:
+        # Resample daily → month-end so the index aligns with the rest of the backtest
+        spy_monthly = spy_daily.resample("ME").last().loc[start_date:]
+    else:
+        return {"error": "SPY data not available"}
+
+    spy_rets = spy_monthly.pct_change().dropna().clip(-0.40, 0.50)
     if len(spy_rets) < 3:
         return {"error": "Insufficient SPY data"}
     equity = (1 + spy_rets).cumprod()
@@ -464,7 +470,7 @@ def run_all_backtests(end_date: str = None, revenue_threshold: float = None) -> 
             comparisons[f"equal_wt_{ykey}"] = {"error": str(e)}
 
         try:
-            comparisons[f"spy_{ykey}"] = _spy_benchmark(prices, years)
+            comparisons[f"spy_{ykey}"] = _spy_benchmark(prices, years, spy_daily=spy_d)
         except Exception as e:
             comparisons[f"spy_{ykey}"] = {"error": str(e)}
 
