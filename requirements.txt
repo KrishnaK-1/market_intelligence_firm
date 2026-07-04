@@ -25,3 +25,9 @@ python-dotenv>=1.0
 
 # Optional: better logging
 rich>=13.0
+
+# Deep Reinforcement Learning (Commodities Desk)
+gymnasium>=1.0          # Trading environment framework (successor to OpenAI Gym)
+stable-baselines3>=2.0  # RL algorithms: PPO, SAC, TD3, A2C, DDPG
+shimmy>=1.0             # gymnasium compatibility shim for stable-baselines3
+# finrl>=0.3.7          # Optional: FinRL reference framework (may need Python <=3.12)

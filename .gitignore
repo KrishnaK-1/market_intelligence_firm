@@ -29,3 +29,5 @@ logs/latest_report.json
 # OS
 .DS_Store
 Thumbs.db
+# RL model binaries (regenerated on retrain)
+models/saved/
