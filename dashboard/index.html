@@ -518,6 +518,7 @@ input[type="range"]::-webkit-slider-thumb {
   <button class="tab-btn" onclick="switchTab('history')">Historical Analysis</button>
   <button class="tab-btn" onclick="switchTab('diagnostics')">Model Diagnostics</button>
   <button class="tab-btn" onclick="switchTab('momentum')">Momentum Strategy</button>
+  <button class="tab-btn" onclick="switchTab('commodities')">Commodities Desk</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -888,6 +889,127 @@ input[type="range"]::-webkit-slider-thumb {
   </div>
 </div>
 
+<!-- ═══════ TAB 6: COMMODITIES DESK ═══════ -->
+<div id="tab-commodities" class="tab-content">
+
+  <!-- Loading state -->
+  <div id="cmdLoading" class="card" style="text-align:center;padding:48px 32px;">
+    <div style="font-size:20px;color:var(--text-secondary);margin-bottom:10px;">Computing commodities desk backtest...</div>
+    <div style="font-size:14px;color:var(--text-muted);">Full-history walk-forward (2008 onward). First run takes a few minutes.</div>
+  </div>
+
+  <!-- Error state -->
+  <div id="cmdError" class="card" style="display:none;text-align:center;padding:40px;">
+    <div style="color:var(--accent-red);font-size:16px;" id="cmdErrorMsg">Error loading commodities data.</div>
+    <button class="btn btn-primary" onclick="commoditiesLoaded=false;fetchCommodities();" style="margin-top:16px;">Retry</button>
+  </div>
+
+  <!-- Results -->
+  <div id="cmdResults" style="display:none;">
+
+    <!-- Stat cards -->
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header">Full History <span class="card-badge" id="cmdFullRange" style="background:rgba(64,144,240,0.15);color:var(--accent-blue);">2008+</span></div>
+        <div class="grid-2" style="margin:8px 0;">
+          <div class="stat-box"><div class="stat-value" id="cmdFullSharpe" style="color:var(--accent-cyan);">--</div><div class="stat-label">Sharpe Ratio</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdFullReturn" style="color:var(--accent-green);">--</div><div class="stat-label">Ann. Return</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdFullDD" style="color:var(--accent-red);">--</div><div class="stat-label">Max Drawdown</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdFullProf" style="color:var(--accent-amber);">--</div><div class="stat-label">Years Profitable</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Recent Regime <span class="card-badge" style="background:rgba(45,212,168,0.15);color:var(--accent-green);">2020+</span></div>
+        <div class="grid-2" style="margin:8px 0;">
+          <div class="stat-box"><div class="stat-value" id="cmdRecSharpe" style="color:var(--accent-cyan);">--</div><div class="stat-label">Sharpe Ratio</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdRecReturn" style="color:var(--accent-green);">--</div><div class="stat-label">Ann. Return</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdRecDD" style="color:var(--accent-red);">--</div><div class="stat-label">Max Drawdown</div></div>
+          <div class="stat-box"><div class="stat-value" id="cmdRecProf" style="color:var(--accent-amber);">--</div><div class="stat-label">Years Profitable</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">vs Benchmarks <span class="card-badge" style="background:rgba(240,160,48,0.15);color:var(--accent-amber);">full period</span></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;"></th>
+            <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">SHARPE</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">ANN. RET</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">MAX DD</th>
+          </tr></thead>
+          <tbody id="cmdBenchBody"></tbody>
+        </table>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">
+          DBC = passive commodity index (the fair comparison). SPY shown for scale — different asset class.
+        </div>
+      </div>
+    </div>
+
+    <!-- Equity curves -->
+    <div class="card">
+      <div class="card-header">Growth of $1 — Desk vs Benchmarks <span style="color:var(--text-muted);font-weight:400;font-size:12px;">(log scale)</span>
+        <span class="card-badge" id="cmdGeneratedAt" style="background:rgba(32,192,224,0.15);color:var(--accent-cyan);margin-left:auto;">--</span>
+        <button class="btn" onclick="fetchCommodities(true)" style="padding:3px 12px;font-size:12px;background:var(--bg-input);border:1px solid var(--border-bright);color:var(--text-secondary);margin-left:10px;">Refresh Data</button>
+      </div>
+      <div class="chart-container chart-xl"><canvas id="cmdEquityChart"></canvas></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">Desk Drawdown</div>
+        <div class="chart-container chart-md"><canvas id="cmdDrawdownChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Desk Yearly Returns</div>
+        <div class="chart-container chart-md"><canvas id="cmdYearlyChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Sector allocation -->
+    <div class="card">
+      <div class="card-header">Sector Allocation Over Time <span style="color:var(--text-muted);font-weight:400;font-size:12px;">(month-end gross exposure)</span></div>
+      <div class="chart-container chart-md"><canvas id="cmdAllocChart"></canvas></div>
+    </div>
+
+    <!-- Year-by-year table -->
+    <div class="card">
+      <div class="card-header">Year-by-Year vs Benchmarks</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">YEAR</th>
+            <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">DESK RETURN</th>
+            <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">SHARPE</th>
+            <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">MAX DD</th>
+            <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">DBC</th>
+            <th style="text-align:right;padding:7px 10px;color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.06em;">SPY</th>
+          </tr></thead>
+          <tbody id="cmdYearBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Methodology & caveats -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">Methodology</div>
+        <ul id="cmdRules" style="font-size:13px;color:var(--text-secondary);line-height:1.9;padding-left:18px;"></ul>
+        <div id="cmdUniverse" style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6;"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Honest Caveats</div>
+        <ul style="font-size:13px;color:var(--text-secondary);line-height:1.9;padding-left:18px;">
+          <li><b>Regime dependence is the headline.</b> The desk's strong recent Sharpe comes from the 2020s commodity regime; 2011–2015 (the commodity super-cycle bear) produced five straight losing years. Passive commodities (DBC) lost over half its value in those same years.</li>
+          <li>Rules were designed against research on 2020-2025 data; the pre-2020 window is out-of-sample for the <i>configuration</i>, and it shows a much lower Sharpe.</li>
+          <li>Long/flat only — the strategy cannot short, which is where trend strategies earned much of their return in sustained bear markets.</li>
+          <li>Several ETFs launched mid-backtest (Brent 2010, grains/copper/sugar late 2011); early years trade a narrower universe.</li>
+          <li>No learning, no fitted parameters: every rule is a fixed formula, so results are reproducible and every day shown is out-of-sample.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- JAVASCRIPT                                                 -->
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -933,6 +1055,7 @@ function switchTab(tabId) {
   event.target.classList.add('active');
   setTimeout(() => { Object.values(charts).forEach(c => c && c.resize && c.resize()); }, 50);
   if (tabId === 'momentum' && !momentumLoaded) fetchMomentum(momentumCurrentEndDate, momentumCurrentThreshold);
+  if (tabId === 'commodities' && !commoditiesLoaded) fetchCommodities();
 }
 
 // ─── Weight sliders ───
@@ -1804,6 +1927,198 @@ function renderComparisonSection(ykey) {
       <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);">${ok ? fmt(stats.total_return) : '—'}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── Commodities Desk ────────────────────────────────────────────────────
+let commoditiesLoaded = false;
+let cmdRetryTimer = null;
+
+// Entity-stable series colors (validated for CVD separation + contrast
+// against the card surface): desk=blue, DBC=amber, SPY=green;
+// sleeves: energy=amber, agriculture=green, metals=blue, cash=muted.
+const CMD_COLORS = {
+  desk: '#4090f0', DBC: '#f0a030', SPY: '#2dd4a8',
+  energy: '#f0a030', agriculture: '#2dd4a8', metals: '#4090f0', cash: '#586580',
+  pos: '#2dd4a8', neg: '#f04848',
+};
+
+async function fetchCommodities(refresh = false) {
+  if (cmdRetryTimer) { clearTimeout(cmdRetryTimer); cmdRetryTimer = null; }
+  document.getElementById('cmdError').style.display = 'none';
+  try {
+    const res = await fetch('/api/commodities' + (refresh ? '?refresh=true' : ''));
+    if (res.status === 202) {
+      document.getElementById('cmdLoading').style.display = '';
+      document.getElementById('cmdResults').style.display = 'none';
+      cmdRetryTimer = setTimeout(() => fetchCommodities(), 15000);
+      return;
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    commoditiesLoaded = true;
+    document.getElementById('cmdLoading').style.display = 'none';
+    document.getElementById('cmdResults').style.display = '';
+    renderCommodities(data);
+  } catch (e) {
+    document.getElementById('cmdLoading').style.display = 'none';
+    document.getElementById('cmdResults').style.display = 'none';
+    document.getElementById('cmdError').style.display = '';
+    document.getElementById('cmdErrorMsg').textContent = 'Error loading commodities data: ' + e.message;
+  }
+}
+
+const cmdPct = (v, signed = true) => v == null ? '—' : `${signed && v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+const cmdRetColor = v => v == null ? 'var(--text-muted)' : v >= 0 ? CMD_COLORS.pos : CMD_COLORS.neg;
+
+function renderCommodities(d) {
+  const f = d.stats.full, r = d.stats.recent;
+  const startY = d.meta.eval_start.slice(0, 4), endY = d.meta.eval_end.slice(0, 4);
+  document.getElementById('cmdFullRange').textContent = `${startY}–${endY}`;
+  document.getElementById('cmdFullSharpe').textContent = f.sharpe.toFixed(2);
+  document.getElementById('cmdFullReturn').textContent = cmdPct(f.annualized_return);
+  document.getElementById('cmdFullDD').textContent = cmdPct(f.max_dd, false);
+  document.getElementById('cmdFullProf').textContent = `${f.years_profitable}/${f.years_total}`;
+  document.getElementById('cmdRecSharpe').textContent = r.sharpe.toFixed(2);
+  document.getElementById('cmdRecReturn').textContent = cmdPct(r.annualized_return);
+  document.getElementById('cmdRecDD').textContent = cmdPct(r.max_dd, false);
+  document.getElementById('cmdRecProf').textContent = `${r.years_profitable}/${r.years_total}`;
+  document.getElementById('cmdGeneratedAt').textContent = 'computed ' + d.meta.generated_at.slice(0, 10);
+
+  // Benchmark mini-table
+  const rows = [
+    ['Desk', f, CMD_COLORS.desk],
+    ['DBC', d.stats.benchmarks.DBC.full, CMD_COLORS.DBC],
+    ['SPY', d.stats.benchmarks.SPY.full, CMD_COLORS.SPY],
+  ];
+  document.getElementById('cmdBenchBody').innerHTML = rows.map(([name, s, color]) => `
+    <tr style="border-bottom:1px solid rgba(28,40,64,0.6);">
+      <td style="padding:6px 8px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};margin-right:7px;vertical-align:-1px;"></span><span style="color:var(--text-primary);font-weight:${name === 'Desk' ? 600 : 400};">${name}</span></td>
+      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-family:var(--font-mono);">${s.sharpe.toFixed(2)}</td>
+      <td style="padding:6px 8px;text-align:right;color:${cmdRetColor(s.annualized_return)};font-family:var(--font-mono);">${cmdPct(s.annualized_return)}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-family:var(--font-mono);">${cmdPct(s.max_dd, false)}</td>
+    </tr>`).join('');
+
+  // Yearly table
+  document.getElementById('cmdYearBody').innerHTML = d.years.map((y, i) => `
+    <tr style="border-bottom:1px solid rgba(28,40,64,0.6);${i % 2 === 1 ? 'background:rgba(14,20,32,0.3)' : ''}">
+      <td style="padding:6px 10px;color:var(--text-primary);font-family:var(--font-mono);">${y.year}${y.partial ? ' YTD' : ''}</td>
+      <td style="padding:6px 10px;text-align:right;font-family:var(--font-mono);font-weight:600;color:${cmdRetColor(y.return)};">${cmdPct(y.return)}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);font-family:var(--font-mono);">${y.sharpe.toFixed(2)}</td>
+      <td style="padding:6px 10px;text-align:right;color:var(--text-secondary);font-family:var(--font-mono);">${cmdPct(y.max_dd, false)}</td>
+      <td style="padding:6px 10px;text-align:right;color:${cmdRetColor(y.dbc_return)};font-family:var(--font-mono);">${cmdPct(y.dbc_return)}</td>
+      <td style="padding:6px 10px;text-align:right;color:${cmdRetColor(y.spy_return)};font-family:var(--font-mono);">${cmdPct(y.spy_return)}</td>
+    </tr>`).join('');
+
+  // Methodology list + universe
+  document.getElementById('cmdRules').innerHTML = d.meta.rules.map(t => `<li>${t}</li>`).join('');
+  document.getElementById('cmdUniverse').innerHTML = Object.entries(d.meta.universe)
+    .map(([s, ts]) => `<b style="color:var(--text-secondary);text-transform:capitalize;">${s}:</b> ${ts.join(', ')}`).join(' &nbsp;·&nbsp; ');
+
+  renderCmdEquity(d); renderCmdDrawdown(d); renderCmdYearly(d); renderCmdAlloc(d);
+}
+
+const CMD_AXIS = { ticks: { color: '#586580', font: { size: 10 } }, grid: { color: '#1c2840' } };
+
+function renderCmdEquity(d) {
+  if (charts.cmdEquity) charts.cmdEquity.destroy();
+  const c = d.equity_curves;
+  const toMap = cv => { const m = {}; cv.dates.forEach((dt, i) => m[dt] = cv.values[i]); return m; };
+  const maps = { desk: toMap(c.desk), DBC: toMap(c.DBC), SPY: toMap(c.SPY) };
+  const dates = [...new Set([...c.desk.dates, ...c.DBC.dates, ...c.SPY.dates])].sort();
+  const mk = (label, key, width) => ({
+    label, data: dates.map(dt => maps[key][dt] ?? null), borderColor: CMD_COLORS[key],
+    borderWidth: width, pointRadius: 0, fill: false, spanGaps: true, tension: 0,
+  });
+  charts.cmdEquity = new Chart(document.getElementById('cmdEquityChart'), {
+    type: 'line',
+    data: { labels: dates.map(dt => dt.slice(0, 7)), datasets: [mk('Desk', 'desk', 2.5), mk('DBC (passive commodities)', 'DBC', 1.5), mk('SPY', 'SPY', 1.5)] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 12 }, boxWidth: 14, boxHeight: 3 } },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y != null ? `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}x  (${cmdPct(ctx.parsed.y - 1)})` : null } },
+      },
+      scales: {
+        x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 14 }, grid: { display: false } },
+        y: { type: 'logarithmic', ticks: { color: '#586580', font: { size: 10 }, callback: v => [0.25, 0.5, 1, 2, 4, 8].includes(v) ? v + 'x' : null }, grid: { color: '#1c2840' } },
+      },
+    },
+  });
+}
+
+function renderCmdDrawdown(d) {
+  if (charts.cmdDrawdown) charts.cmdDrawdown.destroy();
+  charts.cmdDrawdown = new Chart(document.getElementById('cmdDrawdownChart'), {
+    type: 'line',
+    data: {
+      labels: d.drawdown.dates.map(dt => dt.slice(0, 7)),
+      datasets: [{
+        label: 'Drawdown', data: d.drawdown.values, borderColor: CMD_COLORS.neg, borderWidth: 2,
+        pointRadius: 0, fill: true, backgroundColor: 'rgba(240,72,72,0.14)', tension: 0,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `Drawdown: ${cmdPct(ctx.parsed.y, false)}` } } },
+      scales: {
+        x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 10 }, grid: { display: false } },
+        y: { ticks: { color: '#586580', font: { size: 10 }, callback: v => (v * 100).toFixed(0) + '%' }, grid: { color: '#1c2840' } },
+      },
+    },
+  });
+}
+
+function renderCmdYearly(d) {
+  if (charts.cmdYearly) charts.cmdYearly.destroy();
+  charts.cmdYearly = new Chart(document.getElementById('cmdYearlyChart'), {
+    type: 'bar',
+    data: {
+      labels: d.years.map(y => `${y.year}${y.partial ? '*' : ''}`),
+      datasets: [{
+        label: 'Desk return', data: d.years.map(y => y.return),
+        backgroundColor: d.years.map(y => y.return >= 0 ? CMD_COLORS.pos : CMD_COLORS.neg),
+        borderRadius: 4, barPercentage: 0.65, categoryPercentage: 0.9,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `Return: ${cmdPct(ctx.parsed.y)}${d.years[ctx.dataIndex].partial ? ' (partial year)' : ''}` } },
+      },
+      scales: {
+        x: { ticks: { color: '#586580', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#586580', font: { size: 10 }, callback: v => (v * 100).toFixed(0) + '%' }, grid: { color: '#1c2840' } },
+      },
+    },
+  });
+}
+
+function renderCmdAlloc(d) {
+  if (charts.cmdAlloc) charts.cmdAlloc.destroy();
+  const a = d.allocation;
+  const mk = (key, label) => ({
+    label, data: a[key], borderColor: CMD_COLORS[key], borderWidth: 1.5, pointRadius: 0,
+    fill: true, backgroundColor: CMD_COLORS[key] + '66', tension: 0,
+  });
+  charts.cmdAlloc = new Chart(document.getElementById('cmdAllocChart'), {
+    type: 'line',
+    data: { labels: a.dates, datasets: [mk('energy', 'Energy'), mk('agriculture', 'Agriculture'), mk('metals', 'Metals'), mk('cash', 'Cash / T-bills')] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#8b9ab8', font: { family: 'JetBrains Mono', size: 12 }, boxWidth: 14, boxHeight: 10 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(1)}%` } },
+      },
+      scales: {
+        x: { ticks: { color: '#586580', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } },
+        y: { stacked: true, min: 0, max: 1, ticks: { color: '#586580', font: { size: 10 }, callback: v => (v * 100).toFixed(0) + '%' }, grid: { color: '#1c2840' } },
+      },
+    },
+  });
 }
 
 // ─── Initial load + polling ───

@@ -67,7 +67,7 @@ def fetch_group(group: str, start: str = "2010-01-01", end: str = None) -> pd.Da
     if cache_path.exists():
         df = pd.read_pickle(cache_path)
     else:
-        df = yf.download(tickers, start="2010-01-01", end=None, auto_adjust=True, progress=False)
+        df = yf.download(tickers, start="2000-01-01", end=None, auto_adjust=True, progress=False)
         df.to_pickle(cache_path)
 
     return df.loc[start:end]
@@ -81,7 +81,7 @@ def fetch_macro(start: str = "2010-01-01", end: str = None) -> pd.DataFrame:
     if cache_path.exists():
         df = pd.read_pickle(cache_path)
     else:
-        df = yf.download(tickers, start="2010-01-01", end=None, auto_adjust=True, progress=False)
+        df = yf.download(tickers, start="2000-01-01", end=None, auto_adjust=True, progress=False)
         df.to_pickle(cache_path)
 
     return df.loc[start:end]
@@ -95,7 +95,7 @@ def fetch_tickers(tickers: list, cache_name: str, start: str = "2010-01-01", end
     if cache_path.exists():
         df = pd.read_pickle(cache_path)
     else:
-        df = yf.download(tickers, start="2010-01-01", end=None, auto_adjust=True, progress=False)
+        df = yf.download(tickers, start="2000-01-01", end=None, auto_adjust=True, progress=False)
         df.to_pickle(cache_path)
 
     closes = df["Close"] if "Close" in df else df.xs("Close", axis=1, level=0)

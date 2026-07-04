@@ -12,6 +12,7 @@ Endpoints:
   GET  /api/transition       -> Transition probability matrix
   GET  /api/confidence       -> Model confidence/disagreement
   GET  /api/nowcast          -> Real-time nowcast (XGBoost only)
+  GET  /api/commodities      -> Rules-based commodities desk backtest (2008+)
   POST /api/refresh          -> Manual data refresh (inference only)
   POST /api/retrain          -> Force retrain + full pipeline
   GET  /api/health           -> Health check
@@ -51,6 +52,23 @@ is_running = False
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 momentum_cache: dict = {}        # keyed by end_date string, or "live" for today
 momentum_loading_keys: set = set()
+commodities_loading = False
+
+COMMODITIES_PAYLOAD = Path(__file__).resolve().parent.parent / "commodities" / "walkforward_results" / "dashboard.json"
+
+
+def _run_commodities_sync():
+    """Blocking background task: regenerates the commodities desk payload
+    (full 2008+ rules-desk walk-forward, takes a few minutes)."""
+    global commodities_loading
+    try:
+        from commodities.export_dashboard import main as export_main
+        export_main()
+        logger.info("Commodities desk export complete")
+    except Exception as e:
+        logger.error(f"Commodities desk export failed: {e}")
+    finally:
+        commodities_loading = False
 
 
 def _run_momentum_sync(cache_key: str, end_date_arg: Optional[str], revenue_threshold: float):
@@ -228,6 +246,32 @@ async def get_momentum(
             ),
         },
     )
+
+
+@app.get("/api/commodities")
+async def get_commodities(background_tasks: BackgroundTasks, refresh: bool = False):
+    """
+    Rules-based commodities desk: full-history (2008+) walk-forward results.
+    Serves the precomputed payload; pass ?refresh=true to regenerate with
+    the latest prices (runs in the background, takes a few minutes).
+    """
+    global commodities_loading
+    if refresh and not commodities_loading:
+        commodities_loading = True
+        background_tasks.add_task(_run_commodities_sync)
+        return JSONResponse(status_code=202, content={
+            "status": "loading",
+            "message": "Regenerating commodities backtest with latest prices...",
+        })
+    if COMMODITIES_PAYLOAD.exists():
+        return JSONResponse(content=json.loads(COMMODITIES_PAYLOAD.read_text()))
+    if not commodities_loading:
+        commodities_loading = True
+        background_tasks.add_task(_run_commodities_sync)
+    return JSONResponse(status_code=202, content={
+        "status": "loading",
+        "message": "Computing commodities desk backtest — takes a few minutes on first run.",
+    })
 
 
 @app.get("/api/transition")

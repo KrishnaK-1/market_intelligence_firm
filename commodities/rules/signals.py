@@ -134,15 +134,25 @@ def portfolio_vol(weights: pd.DataFrame, cov: pd.DataFrame) -> pd.Series:
     """
     Annualized portfolio vol sqrt(w' Σ w) per date, given a weight matrix
     (dates x assets) and the MultiIndex covariance from ewma_cov.
+
+    Only assets with nonzero weight enter the calculation, so an asset whose
+    ETF doesn't exist yet (NaN covariance, zero weight) never poisons the
+    sleeve's vol estimate — required for backtests that start before every
+    ticker's inception.
     """
     vols = pd.Series(np.nan, index=weights.index)
     for dt in weights.index:
+        w_row = weights.loc[dt]
+        active = w_row[w_row != 0.0].index
+        if len(active) == 0:
+            vols.loc[dt] = 0.0
+            continue
         try:
-            sigma = cov.loc[dt].reindex(index=weights.columns, columns=weights.columns)
+            sigma = cov.loc[dt].reindex(index=active, columns=active)
         except KeyError:
             continue
-        w = weights.loc[dt].values
         if np.isnan(sigma.values).any():
             continue
+        w = w_row[active].values
         vols.loc[dt] = np.sqrt(max(0.0, w @ sigma.values @ w))
     return vols

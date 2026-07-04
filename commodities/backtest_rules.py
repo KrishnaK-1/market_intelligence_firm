@@ -74,17 +74,19 @@ BASELINE_UNIVERSE = {
 }
 
 
-def load_universe(universe=RULES_UNIVERSE):
-    """Assemble sleeve price frames and energy carry multipliers."""
-    curve = fetch_curve_pairs(start=DATA_START)  # WTI_FRONT, WTI_12M, NG_12M, WTI_OPT
+def load_universe(universe=RULES_UNIVERSE, start=DATA_START):
+    """Assemble sleeve price frames and energy carry multipliers. Sleeves keep
+    rows where ANY asset is alive — assets born mid-backtest simply enter the
+    universe at their inception (their weight is zero until then)."""
+    curve = fetch_curve_pairs(start=start)  # WTI_FRONT, WTI_12M, NG_12M, WTI_OPT
 
     sleeves = {}
     for name, assets in universe.items():
         tickers = sorted(set(assets.values()))
         cache_name = f"rules_{name}_{'_'.join(tickers)}"  # cache keyed by ticker set
-        closes = fetch_tickers(tickers, cache_name, start=DATA_START)
+        closes = fetch_tickers(tickers, cache_name, start=start)
         closes = closes.rename(columns={v: k for k, v in assets.items()})
-        sleeves[name] = closes[list(assets.keys())].dropna()
+        sleeves[name] = closes[list(assets.keys())].dropna(how="all")
 
     wti_spread = curve_spread(curve["WTI_FRONT"], curve["WTI_12M"])
     ng_spread = curve_spread(sleeves["energy"]["NG"], curve["NG_12M"])
@@ -141,8 +143,9 @@ def print_sleeve_comparison(name: str, rules_years: dict, ppo: dict):
 
 
 def run_backtest(universe=RULES_UNIVERSE, use_xs_momentum=True,
-                 use_crisis_override=True, verbose=True):
-    sleeves, carry_mults = load_universe(universe)
+                 use_crisis_override=True, verbose=True,
+                 data_start=DATA_START, eval_start=EVAL_START):
+    sleeves, carry_mults = load_universe(universe, start=data_start)
 
     # Cross-sectional momentum is ranked across the WHOLE desk (all sleeves),
     # not within-sleeve: "is gold strong relative to sugar" is the signal.
@@ -152,7 +155,7 @@ def run_backtest(universe=RULES_UNIVERSE, use_xs_momentum=True,
 
     vix = None
     if use_crisis_override:
-        macro = fetch_macro(start=DATA_START)
+        macro = fetch_macro(start=data_start)
         vix = (macro["Close"] if "Close" in macro else macro.xs("Close", axis=1, level=0))["^VIX"]
 
     # Per-sleeve weights and standalone net returns
@@ -168,36 +171,38 @@ def run_backtest(universe=RULES_UNIVERSE, use_xs_momentum=True,
             weights[name] = weights[name].mask(flag, 0.0)
         net_rets[name] = sleeve_net_returns(weights[name], prices)
         if verbose:
-            print_sleeve_comparison(name, yearly_stats(net_rets[name]), load_ppo_results(name))
+            print_sleeve_comparison(name, yearly_stats(net_rets[name], eval_start), load_ppo_results(name))
 
     # Combined portfolio — costs charged once on final asset weights
-    all_prices = pd.concat(sleeves.values(), axis=1).dropna()
+    all_prices = pd.concat(sleeves.values(), axis=1).dropna(how="all")
     sleeve_gross = pd.DataFrame({
         n: sleeve_gross_returns(weights[n].reindex(all_prices.index).fillna(0.0), all_prices.pct_change())
         for n in sleeves
     })
     # T-bill returns for the cash remainder (BIL ETF) — real desks don't hold
     # idle cash at zero yield, especially through the 2023-2025 rate regime.
-    bil = fetch_tickers(["BIL"], "commodities_bil", start=DATA_START)["BIL"].pct_change()
+    bil = fetch_tickers(["BIL"], "commodities_bil", start=data_start)["BIL"].pct_change()
 
     results = {}
+    combos = {}
     for label, alloc, cash in [
         ("equal_weight", None, None),
         ("risk_parity", risk_parity_alloc(sleeve_gross), None),
         ("equal_weight + T-bill cash", None, bil),
     ]:
         combo = combine(weights, all_prices, alloc=alloc, cash_returns=cash)
-        eval_rets = combo["returns"].loc[EVAL_START:]
+        combos[label] = combo
+        eval_rets = combo["returns"].loc[eval_start:]
         stats = perf_stats(eval_rets)
-        years = yearly_stats(combo["returns"])
+        years = yearly_stats(combo["returns"], eval_start)
         results[label] = {
             "overall": stats,
             "years": years,
-            "avg_daily_turnover": float(combo["turnover"].loc[EVAL_START:].mean()),
+            "avg_daily_turnover": float(combo["turnover"].loc[eval_start:].mean()),
         }
         if not verbose:
             continue
-        print(f"\n===== COMBINED PORTFOLIO ({label}) — {EVAL_START[:4]}+ =====")
+        print(f"\n===== COMBINED PORTFOLIO ({label}) — {eval_start[:4]}+ =====")
         for year, s in years.items():
             print(f"  {year:<10} return {s['return']:+7.1%}   sharpe {s['sharpe']:+.2f}   maxDD {s['max_dd']:.1%}")
         full = [y for y in years if "YTD" not in y]
@@ -208,15 +213,23 @@ def run_backtest(universe=RULES_UNIVERSE, use_xs_momentum=True,
               f"avg daily turnover: {results[label]['avg_daily_turnover']:.2%}")
 
     return {
-        "sleeves": {n: yearly_stats(net_rets[n]) for n in sleeves},
+        "sleeves": {n: yearly_stats(net_rets[n], eval_start) for n in sleeves},
         "combined": results,
+        # Raw series for downstream consumers (dashboard export); not JSON'd
+        "_series": {
+            "combos": combos,
+            "sleeve_net_returns": net_rets,
+            "sleeve_weights": weights,
+            "all_prices": all_prices,
+        },
     }
 
 
 def main():
     out = run_backtest(RULES_UNIVERSE, use_xs_momentum=True, verbose=True)
+    serializable = {k: v for k, v in out.items() if not k.startswith("_")}
     RESULTS_DIR.mkdir(exist_ok=True)
-    (RESULTS_DIR / "rules.json").write_text(json.dumps(out, indent=2))
+    (RESULTS_DIR / "rules.json").write_text(json.dumps(serializable, indent=2))
     print(f"\nSaved -> {RESULTS_DIR / 'rules.json'}")
 
 
