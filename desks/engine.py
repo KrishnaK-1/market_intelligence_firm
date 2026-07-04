@@ -68,7 +68,8 @@ def build_carry(kind: str, start: str) -> dict:
 
 
 def run_desk(name: str, spec: dict, vix: pd.Series,
-             data_start: str = DATA_START) -> dict:
+             data_start: str = DATA_START,
+             allow_short: bool = False, max_gross: float = 1.0) -> dict:
     """Run one desk. Returns its price frame, final asset weights (banded,
     cost-free), and standalone net returns for reporting/allocation."""
     sleeves = {
@@ -83,13 +84,81 @@ def run_desk(name: str, spec: dict, vix: pd.Series,
     weights = {}
     for sleeve, prices in sleeves.items():
         w = build_sleeve_weights(prices, carry_mults=carry or None,
-                                 tilt_mults=xs[prices.columns])
+                                 tilt_mults=xs[prices.columns],
+                                 allow_short=allow_short, max_gross=max_gross)
         flag = crisis_flag(prices, vix)
         weights[sleeve] = w.mask(flag, 0.0)
 
     combo = combine(weights, all_prices)   # equal-weight sleeves, costs once
     return {
         "prices": all_prices,
+        "weights": combo["weights"],
+        "net_returns": combo["returns"],
+        "turnover": combo["turnover"],
+    }
+
+
+# Value data reaches back to 2000 so the 5-year lookback is live by the 2008
+# eval start for the pre-2006 ETF cohort; younger ETFs enter the value
+# universe five years after inception.
+VALUE_DATA_START = "2000-01-01"
+VALUE_LOOKBACK = 5 * 252
+
+
+def run_value_desk(vix: pd.Series, data_start: str = DATA_START,
+                   allow_short: bool = False, max_gross: float = 1.0) -> dict:
+    """
+    Value desk (experimental 4th desk): the standard non-equity value signal
+    is long-term reversal — cheapness = the NEGATIVE of the past 5-year
+    return (Asness, Moskowitz & Pedersen 2013). Assets are ranked WITHIN
+    their desk group (commodities vs commodities, sectors vs sectors), the
+    cheap half is overweighted, sized inverse-vol, vol-targeted, banded.
+    Deliberately NO trend filter — buying what trend sold is exactly where
+    the negative correlation to the rest of the firm comes from.
+    """
+    groups = {}
+    for desk_name, spec in DESKS.items():
+        if desk_name == "fx":
+            continue   # FX desk is shelved
+        # "V_" prefix keeps value-desk columns distinct from the trend desks'
+        # when the firm concatenates weights (same underlying ETFs; positions
+        # are tracked per-desk rather than netted — slightly conservative on
+        # costs, much simpler to attribute)
+        merged = {}
+        for sleeve, assets in spec["sleeves"].items():
+            merged.update({f"V_{k}": v for k, v in assets.items()})
+        groups[desk_name] = _fetch_named(merged, f"desk_{desk_name}_value",
+                                         VALUE_DATA_START)
+
+    all_prices = pd.concat(groups.values(), axis=1).dropna(how="all")
+    rets = all_prices.pct_change()
+    from desks.signals import ewma_vol, ewma_cov, portfolio_vol
+    from desks.strategy import SLEEVE_TARGET_VOL
+    ann_vol = ewma_vol(rets)
+
+    score = pd.DataFrame(index=all_prices.index, columns=all_prices.columns,
+                         dtype=float)
+    for name, px in groups.items():
+        cheap = -(px / px.shift(VALUE_LOOKBACK) - 1.0)
+        pct = cheap.rank(axis=1, pct=True)          # 1.0 = cheapest in group
+        if allow_short:
+            score[px.columns] = (2.0 * pct - 1.0)   # rich half shorted
+        else:
+            score[px.columns] = ((pct - 0.5) * 2.0).clip(lower=0.0)
+
+    raw = (score / ann_vol).fillna(0.0)
+    total = raw.abs().sum(axis=1)
+    w_norm = raw.div(total.where(total > 0), axis=0).fillna(0.0)
+    vol_est = portfolio_vol(w_norm, ewma_cov(rets))
+    scale = (SLEEVE_TARGET_VOL / vol_est.replace(0.0, np.nan)).clip(upper=max_gross).fillna(0.0)
+    w = apply_trade_band(w_norm.mul(scale, axis=0))
+    w = w.mask(crisis_flag(all_prices, vix), 0.0)
+
+    w = w.loc[data_start:]
+    prices = all_prices.loc[data_start:]
+    combo = combine({"value": w}, prices)
+    return {
+        "prices": prices,
         "weights": combo["weights"],
         "net_returns": combo["returns"],
         "turnover": combo["turnover"],
@@ -105,14 +174,28 @@ def yearly_stats(returns: pd.Series, eval_start: str = EVAL_START) -> dict:
     return out
 
 
+FINANCING_SPREAD = 0.005   # borrow at T-bill + 50 bps for gross exposure > 1
+
+
 def run_firm(data_start: str = DATA_START, eval_start: str = EVAL_START,
-             include: list = None, verbose: bool = True) -> dict:
+             include: list = None, verbose: bool = True,
+             allow_short: bool = False, max_gross: float = 1.0) -> dict:
+    """`include` may list desk names from DESKS plus the special name
+    "value" (the experimental 5-year-reversal desk). allow_short/max_gross
+    are the compliance switches — both off by default; when max_gross > 1,
+    leverage financing is charged at T-bill + FINANCING_SPREAD. Shorting is
+    modeled frictionless (no borrow fees) — treat short results as an
+    upper-bound estimate."""
     vix = fetch_tickers(["^VIX"], "desks_vix", start=data_start)["^VIX"]
     bil = fetch_tickers(["BIL"], "commodities_bil", start=data_start)["BIL"].pct_change()
 
     specs = {n: s for n, s in DESKS.items() if include is None or n in include}
-    desks = {name: run_desk(name, spec, vix, data_start)
+    desks = {name: run_desk(name, spec, vix, data_start,
+                            allow_short=allow_short, max_gross=max_gross)
              for name, spec in specs.items()}
+    if include is not None and "value" in include:
+        desks["value"] = run_value_desk(vix, data_start,
+                                        allow_short=allow_short, max_gross=max_gross)
 
     all_prices = pd.concat([d["prices"] for d in desks.values()], axis=1)
     all_prices = all_prices.dropna(how="all")
@@ -138,9 +221,14 @@ def run_firm(data_start: str = DATA_START, eval_start: str = EVAL_START,
 
         held = firm_w.shift(1).fillna(0.0)
         gross = (held * all_rets).sum(axis=1)
-        cash = (1.0 - held.sum(axis=1)).clip(lower=0.0)
+        gross_exposure = held.abs().sum(axis=1)
+        cash = (1.0 - gross_exposure).clip(lower=0.0)
+        borrowed = (gross_exposure - 1.0).clip(lower=0.0)
         turnover = (firm_w - held).abs().sum(axis=1)
-        net = gross + cash * bil.reindex(gross.index).fillna(0.0) - turnover * TRANSACTION_COST
+        bil_d = bil.reindex(gross.index).fillna(0.0)
+        net = (gross + cash * bil_d
+               - borrowed * (bil_d + FINANCING_SPREAD / TRADING_DAYS)
+               - turnover * TRANSACTION_COST)
 
         results[label] = {
             "overall": perf_stats(net.loc[eval_start:]),

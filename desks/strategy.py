@@ -56,32 +56,55 @@ def build_sleeve_weights(
     carry_mults: dict = None,
     tilt_mults: pd.DataFrame = None,
     target_vol: float = SLEEVE_TARGET_VOL,
+    allow_short: bool = False,
+    max_gross: float = 1.0,
 ) -> pd.DataFrame:
     """
     Daily target weights for one sleeve. `carry_mults` maps asset name ->
     multiplier Series for assets that have a futures-curve proxy pair.
     `tilt_mults` is a per-asset multiplier frame (e.g. the cross-sectional
     momentum tilt, ranked across the whole desk rather than within-sleeve).
+
+    Compliance switches (both OFF by default — current mandate is long/flat,
+    unleveraged; flip them the day the mandate changes):
+      allow_short: trend gate becomes directional in [-1, 1] — below all
+        SMAs is a full short instead of flat. Carry tilts longs only (a
+        contango discount must not shrink a short); the XS momentum tilt is
+        mirrored for shorts (weakest asset -> biggest short). NOTE: borrow
+        fees and short availability are NOT modeled.
+      max_gross: cap on gross exposure (sum of |weights|). 1.0 = unleveraged.
+        Above 1.0 the vol-target scaler may lever quiet markets up toward the
+        sleeve target (TSMOM-style); financing cost is charged at the firm
+        level, not here.
     """
     rets = prices.pct_change()
     trend = multi_horizon_trend(prices)
     vol = ewma_vol(rets)
 
-    raw = trend / vol.replace(0.0, np.nan)
+    signal = (2.0 * trend - 1.0) if allow_short else trend
+    raw = signal / vol.replace(0.0, np.nan)
     if carry_mults:
         for asset, mult in carry_mults.items():
             if asset in raw.columns:
-                raw[asset] = raw[asset] * mult.reindex(raw.index).ffill().fillna(1.0)
+                m = mult.reindex(raw.index).ffill().fillna(1.0)
+                if allow_short:
+                    raw[asset] = raw[asset].where(raw[asset] < 0, raw[asset] * m)
+                else:
+                    raw[asset] = raw[asset] * m
     if tilt_mults is not None:
-        raw = raw * tilt_mults.reindex(index=raw.index, columns=raw.columns).fillna(1.0)
+        t = tilt_mults.reindex(index=raw.index, columns=raw.columns).fillna(1.0)
+        if allow_short:
+            raw = raw * t.where(raw >= 0, 2.0 - t)   # mirror: short the weak harder
+        else:
+            raw = raw * t
     raw = raw.fillna(0.0)
 
-    total = raw.sum(axis=1)
+    total = raw.abs().sum(axis=1)
     w_norm = raw.div(total.where(total > 0), axis=0).fillna(0.0)
 
     cov = ewma_cov(rets)
     vol_est = portfolio_vol(w_norm, cov)
-    scale = (target_vol / vol_est.replace(0.0, np.nan)).clip(upper=1.0).fillna(0.0)
+    scale = (target_vol / vol_est.replace(0.0, np.nan)).clip(upper=max_gross).fillna(0.0)
     return apply_trade_band(w_norm.mul(scale, axis=0))
 
 
