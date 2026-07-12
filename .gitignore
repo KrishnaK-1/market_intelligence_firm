@@ -31,3 +31,4 @@ logs/latest_report.json
 Thumbs.db
 # RL model binaries (regenerated on retrain)
 models/saved/
+live/reports/

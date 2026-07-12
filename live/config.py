@@ -1,0 +1,37 @@
+"""
+Live-trading configuration. All secrets come from a .env file in the repo
+root (see .env.example) — nothing sensitive is ever committed.
+"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
+
+ALPACA_API_KEY = os.getenv("ALPACA_API_KEY", "")
+ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
+# Paper trading by default. Set ALPACA_PAPER=false in .env ONLY when the
+# strategy has proven itself on paper and live trading is intended.
+ALPACA_PAPER = os.getenv("ALPACA_PAPER", "true").strip().lower() != "false"
+
+# Portfolio: the 3-desk firm, equal-weight across desks (the boss-report
+# configuration). Long/flat, unleveraged — mandate switches stay off live.
+INCLUDE_DESKS = ["commodities", "equities", "rates"]
+FIRM_VARIANT = "equal_weight"
+
+# Rebalance only when actual positions have drifted from target by more than
+# this L1 distance (fraction of equity) — mirrors the backtest's no-trade band.
+TRADE_BAND = 0.05
+
+MIN_ORDER_NOTIONAL = 5.0      # skip dust orders below this many dollars
+ORDER_FILL_TIMEOUT = 120      # seconds to wait for a market order to fill
+REPORTS_DIR = ROOT / "live" / "reports"
+
+
+def require_keys():
+    if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:
+        raise SystemExit(
+            "Missing Alpaca credentials. Copy .env.example to .env in the repo "
+            "root and fill in ALPACA_API_KEY and ALPACA_SECRET_KEY."
+        )

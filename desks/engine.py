@@ -210,7 +210,7 @@ def run_firm(data_start: str = DATA_START, eval_start: str = EVAL_START,
     rp_alloc = inv.div(inv.sum(axis=1), axis=0).fillna(1.0 / n)
     eq_alloc = pd.DataFrame(1.0 / n, index=all_prices.index, columns=list(desks))
 
-    results, series = {}, {}
+    results, series, firm_weights = {}, {}, {}
     for label, alloc in [("equal_weight", eq_alloc), ("risk_parity", rp_alloc)]:
         firm_w = pd.DataFrame(0.0, index=all_prices.index, columns=all_prices.columns)
         for name, d in desks.items():
@@ -236,6 +236,7 @@ def run_firm(data_start: str = DATA_START, eval_start: str = EVAL_START,
             "avg_daily_turnover": float(turnover.loc[eval_start:].mean()),
         }
         series[label] = net
+        firm_weights[label] = firm_w   # asset-level targets (live trading reads the last row)
 
     # Benchmarks: SPY and daily-rebalanced 60/40 (SPY/AGG)
     bench = fetch_tickers(["SPY", "AGG"], "desks_benchmarks", start=data_start)
@@ -258,7 +259,8 @@ def run_firm(data_start: str = DATA_START, eval_start: str = EVAL_START,
         "benchmarks": benchmarks,
         "desk_correlations": corr.to_dict(),
         "spy_correlation": spy_corr,
-        "_series": {"desks": desks, "firm": series, "desk_rets": desk_rets},
+        "_series": {"desks": desks, "firm": series, "desk_rets": desk_rets,
+                    "firm_weights": firm_weights},
     }
 
     if verbose:
