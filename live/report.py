@@ -49,20 +49,25 @@ def write_report(run: dict) -> Path:
     )
     targets.loc[len(targets)] = ["CASH (T-bill leg)", run["targets"]["cash_weight"]]
 
-    account = pd.DataFrame([{
-        "run_at": datetime.now().isoformat(timespec="seconds"),
-        "mode": "PAPER" if ALPACA_PAPER else "LIVE",
-        "signals_as_of_close": run["targets"]["asof"],
-        "equity": run["account"]["equity"],
-        "cash": run["account"]["cash"],
-        "drift_vs_target": run["plan"]["drift"],
-        "trade_band": TRADE_BAND,
-        "rebalanced": run["plan"]["trade"],
-        "orders_placed": len(run.get("records", [])),
-        "orders_filled": sum(1 for r in run.get("records", []) if r.status == "filled"),
-        **{f"desk_gross_{k}": v for k, v in run["targets"]["desk_gross_exposure"].items()},
-    }]).T.reset_index()
-    account.columns = ["field", "value"]
+    # Built as an explicit (field, value) list rather than a transposed
+    # single-row frame: transposing a row of mixed dtypes silently coerces
+    # exact-1.0 floats (a fully-invested desk) into the boolean True.
+    drift = run["plan"]["drift"]
+    acct_rows = [
+        ("run_at", datetime.now().isoformat(timespec="seconds")),
+        ("mode", run.get("mode_label", "PAPER" if ALPACA_PAPER else "LIVE")),
+        ("signals_as_of_close", run["targets"]["asof"]),
+        ("equity", round(float(run["account"]["equity"]), 2)),
+        ("cash", round(float(run["account"]["cash"]), 2)),
+        ("drift_vs_target", round(float(drift), 4) if drift is not None else ""),
+        ("trade_band", TRADE_BAND),
+        ("rebalanced", str(run["plan"]["trade"])),
+        ("orders_placed", len(run.get("records", []))),
+        ("orders_filled", sum(1 for r in run.get("records", []) if r.status == "filled")),
+    ]
+    for k, v in run["targets"]["desk_gross_exposure"].items():
+        acct_rows.append((f"desk_gross_{k}", round(float(v), 4)))
+    account = pd.DataFrame(acct_rows, columns=["field", "value"])
 
     with pd.ExcelWriter(path, engine="openpyxl") as xl:
         trades.to_excel(xl, sheet_name="Trades", index=False)
@@ -78,7 +83,7 @@ def _append_master(run: dict):
     master = REPORTS_DIR / "master_log.csv"
     row = {
         "date": datetime.now().strftime("%Y-%m-%d"),
-        "mode": "PAPER" if ALPACA_PAPER else "LIVE",
+        "mode": run.get("mode_label", "PAPER" if ALPACA_PAPER else "LIVE"),
         "equity": run["account"]["equity"],
         "drift": round(run["plan"]["drift"], 4) if run["plan"]["drift"] is not None else "",
         "rebalanced": run["plan"]["trade"],

@@ -5,44 +5,66 @@ Daily entrypoint — schedule this once per trading day (morning, e.g. 9:35 ET).
                                            trade via Alpaca -> Excel report
     python live/run_daily.py --dry-run     compute targets and write the
                                            report, but place NO orders and
-                                           never touch Alpaca (no keys needed)
+                                           never touch Alpaca (no keys needed).
+                                           Reports are labeled DRY-RUN and use
+                                           a placeholder $100k — they are NOT
+                                           real account data.
+
+Every run appends to live/reports/run.log, so a scheduled run that fails or
+does nothing still leaves a trace you can read afterwards.
 
 Pipeline: refresh price caches (data through yesterday's close, a partial
 bar for today can never leak in) -> run the SAME engine as the backtest ->
 compare targets against actual account positions -> trade only if drift
-exceeds the no-trade band -> write live/reports/trading_report_<date>.xlsx.
+exceeds the no-trade band AND the market is open -> write the Excel report.
 """
 import sys
+import logging
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from live.config import require_keys, ALPACA_PAPER, TRADE_BAND
+from live.config import require_keys, ALPACA_PAPER, TRADE_BAND, REPORTS_DIR
 from live.targets import refresh_caches, compute_targets
 from live.report import write_report
 
 
+def _log():
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    log = logging.getLogger("live")
+    if not log.handlers:
+        log.setLevel(logging.INFO)
+        fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        for h in (logging.FileHandler(REPORTS_DIR / "run.log", encoding="utf-8"),
+                  logging.StreamHandler()):
+            h.setFormatter(fmt)
+            log.addHandler(h)
+    return log
+
+
+log = _log()
+
+
 def main(dry_run: bool = False):
-    print(f"=== Daily rebalance {'(DRY RUN)' if dry_run else ''} "
-          f"[{'PAPER' if ALPACA_PAPER else 'LIVE'}] ===")
+    mode_label = "DRY-RUN" if dry_run else ("PAPER" if ALPACA_PAPER else "LIVE")
+    log.info(f"===== Daily rebalance [{mode_label}] =====")
 
-    print("1/4 Refreshing price data...")
-    refresh_caches()
+    log.info("1/4 Refreshing price data...")
+    refresh_caches(verbose=False)
 
-    print("2/4 Computing target weights (full engine run, ~2-4 min)...")
+    log.info("2/4 Computing target weights (full engine run, ~2-4 min)...")
     targets = compute_targets()
     gross = sum(targets["weights"].values())
-    print(f"    signals as of close {targets['asof']} | gross exposure "
-          f"{gross:.1%} | cash {targets['cash_weight']:.1%} | "
-          f"{len(targets['weights'])} tickers")
+    log.info(f"    signals as of close {targets['asof']} | gross exposure {gross:.1%} | "
+             f"cash {targets['cash_weight']:.1%} | {len(targets['weights'])} tickers")
 
     if dry_run:
-        run = {"targets": targets, "account": {"equity": 100_000.0, "cash": 100_000.0},
+        run = {"mode_label": mode_label, "targets": targets,
+               "account": {"equity": 100_000.0, "cash": 100_000.0},
                "plan": {"drift": None, "trade": False, "orders": [], "deltas": {}},
                "records": [], "positions_after": {},
-               "no_trade_reason": "dry run — no orders placed"}
-        path = write_report(run)
-        print(f"4/4 DRY RUN report -> {path}")
+               "no_trade_reason": "DRY RUN — placeholder account, no orders placed"}
+        log.info(f"4/4 DRY RUN report -> {write_report(run)}")
         return
 
     require_keys()
@@ -51,40 +73,48 @@ def main(dry_run: bool = False):
 
     broker = Broker()
     if not broker.market_tradable_today():
-        print("Market is closed today (holiday/weekend) — nothing to do.")
+        log.info("Market closed today (weekend/holiday) — nothing to do.")
         return
+    market_open = bool(broker.trading.get_clock().is_open)
 
     account = broker.account()
     positions = broker.positions()
-    print(f"    account equity ${account['equity']:,.2f} | "
-          f"{len(positions)} open positions")
+    log.info(f"    account equity ${account['equity']:,.2f} | "
+             f"{len(positions)} open positions | market_open={market_open}")
 
-    print("3/4 Planning and executing orders...")
+    log.info("3/4 Planning orders...")
     plan = plan_orders(targets["weights"], positions, account["equity"])
-    records = []
-    if plan["trade"]:
+    records, deferred = [], False
+
+    if plan["trade"] and market_open:
         records = execute_plan(broker, plan, positions)
         filled = sum(1 for r in records if r.status == "filled")
         errors = [r for r in records if r.status == "error"]
-        print(f"    {len(records)} orders: {filled} filled, {len(errors)} errors")
+        log.info(f"    {len(records)} orders: {filled} filled, {len(errors)} errors")
         for r in errors:
-            print(f"      ERROR {r.symbol}: {r.error}")
+            log.warning(f"    ORDER ERROR {r.symbol}: {r.error}")
+    elif plan["trade"] and not market_open:
+        deferred = True
+        log.info(f"    Rebalance needed (drift {plan['drift']:.1%}) but market is NOT open yet "
+                 f"— orders DEFERRED. Re-run 9:30am–4:00pm ET to execute.")
     else:
-        print(f"    drift {plan['drift']:.2%} is inside the {TRADE_BAND:.0%} band — no trades")
+        log.info(f"    drift {plan['drift']:.2%} inside the {TRADE_BAND:.0%} band — no trades")
 
-    run = {
-        "targets": targets, "account": broker.account(), "plan": plan,
-        "records": records, "positions_after": broker.positions(),
-        "no_trade_reason": (None if plan["trade"] else
-                            f"drift {plan['drift']:.2%} inside no-trade band"),
-    }
-    path = write_report(run)
-    print(f"4/4 Report -> {path}")
+    reason = None
+    if deferred:
+        reason = f"rebalance deferred — market not open (drift {plan['drift']:.1%})"
+    elif not plan["trade"]:
+        reason = f"drift {plan['drift']:.2%} inside no-trade band"
+
+    run = {"mode_label": mode_label, "targets": targets, "account": broker.account(),
+           "plan": plan, "records": records, "positions_after": broker.positions(),
+           "no_trade_reason": reason}
+    log.info(f"4/4 Report -> {write_report(run)}")
 
 
 if __name__ == "__main__":
     try:
         main(dry_run="--dry-run" in sys.argv)
     except Exception:
-        traceback.print_exc()
+        log.error("RUN FAILED:\n" + traceback.format_exc())
         sys.exit(1)
