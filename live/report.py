@@ -81,15 +81,18 @@ def write_report(run: dict) -> Path:
 
 def _append_master(run: dict):
     master = REPORTS_DIR / "master_log.csv"
+    records = run.get("records", [])
     row = {
         "date": datetime.now().strftime("%Y-%m-%d"),
         "mode": run.get("mode_label", "PAPER" if ALPACA_PAPER else "LIVE"),
         "equity": run["account"]["equity"],
         "drift": round(run["plan"]["drift"], 4) if run["plan"]["drift"] is not None else "",
-        "rebalanced": run["plan"]["trade"],
-        "orders": len(run.get("records", [])),
-        "filled": sum(1 for r in run.get("records", []) if r.status == "filled"),
-        "errors": sum(1 for r in run.get("records", []) if r.status == "error"),
+        # traded = orders actually went out, so a deferred run (rebalance
+        # needed but market closed -> 0 orders) reads False, not True
+        "traded": len(records) > 0,
+        "orders": len(records),
+        "filled": sum(1 for r in records if r.status == "filled"),
+        "errors": sum(1 for r in records if r.status == "error"),
     }
     new = not master.exists()
     with open(master, "a", newline="") as f:

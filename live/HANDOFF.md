@@ -101,10 +101,20 @@ Windows Task Scheduler → Create Basic Task:
 
 - **Trigger:** Daily, 9:35 AM (ET — adjust if your machine is in another timezone)
 - **Action:** Start a program
-  - Program: `python`
+  - Program: **the FULL path to python.exe** — NOT bare `python`. Find it by
+    running `python -c "import sys; print(sys.executable)"` in a terminal; it
+    looks like `C:\Users\<you>\AppData\Local\Python\pythoncore-3.14-64\python.exe`.
   - Arguments: `live\run_daily.py`
   - Start in: the full path to the repo folder
 - On the task's settings, enable **"Wake the computer to run this task."**
+
+> **Why the full path matters:** a scheduled task runs with a bare-minimum
+> environment that often does **not** include Python on its PATH. If you set
+> the program to just `python`, the task fails silently with result code
+> `0x80070002` ("file not found") and never runs — no report, no error popup.
+> The full path avoids this entirely. After creating the task, confirm it by
+> right-clicking it → **Run**, then checking that a new line appears in
+> `live/reports/run.log`.
 
 Mac/Linux cron equivalent:
 

@@ -25,7 +25,9 @@ FIRM_VARIANT = "equal_weight"
 TRADE_BAND = 0.05
 
 MIN_ORDER_NOTIONAL = 5.0      # skip dust orders below this many dollars
-ORDER_FILL_TIMEOUT = 120      # seconds to wait for a market order to fill
+ORDER_FILL_TIMEOUT = 180      # seconds to wait for a market order to fill
+                              # (raised from 120 after EMB took 116s at the
+                              # volatile open on the first live rebalance)
 REPORTS_DIR = ROOT / "live" / "reports"
 
 
