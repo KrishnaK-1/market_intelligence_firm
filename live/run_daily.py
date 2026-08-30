@@ -24,7 +24,9 @@ import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from live.config import require_keys, ALPACA_PAPER, TRADE_BAND, REPORTS_DIR
+from live.config import (
+    require_keys, ALPACA_PAPER, TRADE_BAND, REPORTS_DIR, MAX_DAILY_TURNOVER,
+)
 from live.targets import refresh_caches, compute_targets
 from live.report import write_report
 
@@ -86,7 +88,12 @@ def main(dry_run: bool = False):
     plan = plan_orders(targets["weights"], positions, account["equity"])
     records, deferred = [], False
 
-    if plan["trade"] and market_open:
+    if plan.get("blocked"):
+        log.error(f"    CIRCUIT BREAKER: plan wants to move {plan['drift']:.1%} of the book "
+                  f"(limit {MAX_DAILY_TURNOVER:.0%}) — NO trades placed. This usually means "
+                  f"bad price data or a mispriced account. Inspect today's report, then "
+                  f"re-run once the cause is understood.")
+    elif plan["trade"] and market_open:
         records = execute_plan(broker, plan, positions)
         filled = sum(1 for r in records if r.status == "filled")
         errors = [r for r in records if r.status == "error"]
@@ -101,7 +108,10 @@ def main(dry_run: bool = False):
         log.info(f"    drift {plan['drift']:.2%} inside the {TRADE_BAND:.0%} band — no trades")
 
     reason = None
-    if deferred:
+    if plan.get("blocked"):
+        reason = (f"CIRCUIT BREAKER — plan wanted {plan['drift']:.1%} turnover "
+                  f"(limit {MAX_DAILY_TURNOVER:.0%}); no trades placed")
+    elif deferred:
         reason = f"rebalance deferred — market not open (drift {plan['drift']:.1%})"
     elif not plan["trade"]:
         reason = f"drift {plan['drift']:.2%} inside no-trade band"

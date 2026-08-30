@@ -24,6 +24,13 @@ FIRM_VARIANT = "equal_weight"
 # this L1 distance (fraction of equity) — mirrors the backtest's no-trade band.
 TRADE_BAND = 0.05
 
+# Circuit breaker on RESHUFFLE turnover — trading between assets while total
+# invested exposure stays put. Observed legitimate rebalances run 5-11% of the
+# book; the 2026-08-20 data glitch tried 80%. Changes in exposure itself
+# (crisis liquidation to cash, initial deployment) are excluded from this
+# measure, so genuine de-risking is never blocked.
+MAX_DAILY_TURNOVER = 0.25
+
 MIN_ORDER_NOTIONAL = 5.0      # skip dust orders below this many dollars
 ORDER_FILL_TIMEOUT = 180      # seconds to wait for a market order to fill
                               # (raised from 120 after EMB took 116s at the

@@ -10,12 +10,13 @@ existing position; anything held that isn't in the target gets fully exited.
 import time
 
 from live.broker import Broker, TradeRecord
-from live.config import TRADE_BAND, MIN_ORDER_NOTIONAL
+from live.config import TRADE_BAND, MIN_ORDER_NOTIONAL, MAX_DAILY_TURNOVER
 
 
 def plan_orders(targets: dict, positions: dict, equity: float) -> dict:
-    """Compute per-ticker dollar deltas. Returns dict with the plan and the
-    band decision. Positive delta = buy, negative = sell."""
+    """Compute per-ticker dollar deltas. Returns dict with the plan, the
+    band decision, and the circuit-breaker decision. Positive delta = buy,
+    negative = sell."""
     current = {s: p["market_value"] for s, p in positions.items()}
     symbols = sorted(set(targets) | set(current))
     deltas = {}
@@ -25,6 +26,21 @@ def plan_orders(targets: dict, positions: dict, equity: float) -> dict:
 
     drift = sum(abs(d) for d in deltas.values()) / equity if equity > 0 else 0.0
     trade = drift > TRADE_BAND
+
+    # Circuit breaker. It must fire on CHURN (the book gets reshuffled between
+    # assets for no good reason — the data-glitch signature) but never on a
+    # legitimate change in how much is invested: a crisis liquidation to cash,
+    # or the initial deployment, both move ~86% of the book and must go
+    # through. Splitting turnover into "exposure change" vs "reshuffle"
+    # separates the two cleanly.
+    target_gross = sum(targets.values())
+    current_gross = sum(current.values()) / equity if equity > 0 else 0.0
+    exposure_change = abs(target_gross - current_gross)
+    reshuffle = max(0.0, drift - exposure_change)
+    blocked = bool(positions) and reshuffle > MAX_DAILY_TURNOVER
+    if blocked:
+        trade = False
+
     orders = []
     if trade:
         sells = [(s, d) for s, d in deltas.items() if d < -MIN_ORDER_NOTIONAL]
@@ -32,7 +48,8 @@ def plan_orders(targets: dict, positions: dict, equity: float) -> dict:
         # sells first: the cash they free up funds the buys
         orders = [(s, d, "sell") for s, d in sorted(sells, key=lambda x: x[1])] + \
                  [(s, d, "buy") for s, d in sorted(buys, key=lambda x: -x[1])]
-    return {"deltas": deltas, "drift": drift, "trade": trade, "orders": orders}
+    return {"deltas": deltas, "drift": drift, "trade": trade,
+            "orders": orders, "blocked": blocked}
 
 
 def execute_plan(broker: Broker, plan: dict, positions: dict) -> list:
