@@ -1,85 +1,84 @@
 # Market Intelligence Firm
-### Multi-Manager Investment Decision Platform
+### A multi-strategy quantitative investment platform: from macro research to live execution
 
-A fully ML-driven economic regime classification and asset allocation system built on an ensemble of HMM + GMM + XGBoost, with an independent LSTM neural network classifier and a FastAPI dashboard for real-time monitoring.
+**Authors:** [Sid Sibal](https://github.com/sibalsid3) & [Krish Kanitkar](https://github.com/KrishnaK-1)
+
+This project is a small investment firm written in Python. It covers the whole workflow: reading the economy, generating trading signals, testing them honestly on past data, and trading them automatically through a broker.
+
+| Component | What it does | Where |
+|---|---|---|
+| **Economic regime classifier** | Ensemble of HMM + GMM + XGBoost (plus an LSTM neural net) that labels the economy as Expansion, Slowdown, Contraction, Recovery or Crisis from 24 macro features | `models/`, `agents/`, `data/` |
+| **Cross-sectional momentum** | 12-1 month momentum across point-in-time S&P 500 constituents, with a 200-day MA regime filter, revenue-growth screen, inverse-volatility sizing and transaction costs | `momentum/` |
+| **Multi-desk trend firm** | Rules-based commodities, equities and rates desks (50/100/200-day trend, 12-1 momentum, 12% vol targeting, crisis liquidation, 10 bps costs), combined at the firm level | `desks/`, `commodities/` |
+| **Walk-forward backtesting** | Out-of-sample testing with realistic costs and benchmarks (SPY, 60/40) | `backtest/`, `desks/engine.py`, `commodities/walkforward.py` |
+| **Live trading (Alpaca)** | Daily automated rebalancing of the 3-desk firm through the Alpaca API: paper trading by default, never shorts or uses leverage, writes Excel trade reports | `live/` |
+| **Dashboard** | FastAPI server and interactive web dashboard for regimes, allocations, momentum and the commodities desk | `dashboard/` |
 
 ---
 
-## Architecture
+## Results
+
+**3-desk firm (commodities + equities + rates), walk-forward, 2008 to Sept 2026, after costs:**
+
+| Strategy | Sharpe | Max drawdown | Volatility |
+|---|---|---|---|
+| **Firm: equal weight across desks** | **0.69** | **−13.2%** | 5.6% |
+| Firm: risk parity across desks | 0.70 | −12.2% | 4.7% |
+| SPY buy-and-hold | 0.64 | −51.9% | 19.7% |
+| 60/40 (SPY/AGG) | 0.72 | −33.2% | 12.1% |
+
+The firm matches the stock market's risk-adjusted return with about a quarter of the worst loss.
+
+**Honest caveats**
+- **Lower total return.** The firm runs at about 6% volatility, so its total return is far below SPY's. The advantage is steadier returns and smaller drawdowns, not more money in a bull market.
+- **Commodities depend on the regime.** The commodities desk did well from 2020 on but lost money through the 2011–2015 commodity slump.
+- **Some ideas didn't work.** An FX desk (Sharpe −0.19), naive shorting and a value desk were tested and deliberately left out. That code stays in the repo for transparency.
+- **Backtests aren't live results.** Tuning on the 2008–2026 window is finished to avoid overfitting. Paper trading is how the strategy gets tested going forward.
+- **Regime classifier:** 89.7% agreement with NBER recession history; its regime-based allocation backtest shows Sharpe 1.08 and max drawdown −15.9%.
+
+---
+
+## Repository Map
 
 ```
 market_intelligence_firm/
-├── config/
-│   └── settings.py           # All configuration, tickers, regime templates
-├── data/
-│   ├── ingestion.py           # FRED API, Yahoo Finance, Shiller CAPE
-│   ├── nowcast.py             # Real-time nowcast (BLS + Yahoo + FRED daily)
-│   ├── ie_data.xls            # Shiller CAPE local data file
-│   └── cache/                 # Cached data files (auto-generated)
-├── models/
-│   ├── regime_classifier.py   # Ensemble HMM + GMM + XGBoost
-│   ├── neural_regime_classifier.py  # LSTM neural net (display-only)
-│   ├── feature_registry.py    # Base (24) + experimental (4) feature management
-│   ├── feedback.py            # Self-optimizing feedback loop
-│   └── saved/                 # Persisted trained models + params
-├── agents/
-│   └── economic_manager.py    # Economic Regime Manager + CIO Aggregator
-├── alerts/
-│   └── engine.py              # Regime shift early warning system
-├── backtest/
-│   └── engine.py              # Walk-forward backtester
-├── dashboard/
-│   ├── server.py              # FastAPI server + scheduler + nowcast endpoint
-│   └── index.html             # Interactive 4-tab dashboard
-├── main.py                    # Orchestrator (full pipeline + retrain stability)
-├── requirements.txt
-├── .env                       # FRED_API_KEY + BLS_API_KEY
-└── README.md
+├── config/settings.py        # Configuration, tickers, regime templates
+├── data/                     # FRED / BLS / Yahoo / Shiller ingestion, nowcast, S&P 500 constituent history
+├── models/                   # Regime ensemble (HMM+GMM+XGBoost), LSTM classifier, feature registry
+├── agents/                   # Economic Regime Manager + CIO aggregator
+├── alerts/                   # Regime-shift early warnings
+├── backtest/                 # Walk-forward backtester for the regime strategy
+├── momentum/                 # Cross-sectional momentum strategy + filters
+├── commodities/              # Commodities desk: rules strategy, RL (PPO) benchmark, walk-forward
+├── desks/                    # Shared signal engine, desk universes, firm-level allocator
+├── live/                     # Alpaca live/paper trading module (see live/README.md)
+├── dashboard/                # FastAPI server + web dashboard
+├── main.py                   # Regime pipeline orchestrator
+└── requirements.txt
 ```
 
 ## Quick Start
 
-### 1. Clone and Install
-
 ```bash
+git clone https://github.com/KrishnaK-1/market_intelligence_firm.git
 cd market_intelligence_firm
 pip install -r requirements.txt
+cp .env.example .env          # then add your API keys
 ```
 
-### 2. Configure API Keys
+API keys, all free: [FRED](https://fred.stlouisfed.org/docs/api/api_key.html) (required), [BLS](https://data.bls.gov/registrationEngine/) (nowcast), [FMP](https://financialmodelingprep.com/) (optional momentum revenue screen), [Alpaca](https://alpaca.markets) (live module only).
 
-```bash
-cp .env.example .env
-# Edit .env and add your API keys:
-# FRED_API_KEY=your_fred_key_here
-# BLS_API_KEY=your_bls_key_here
-```
-
-- Get a free FRED API key at: https://fred.stlouisfed.org/docs/api/api_key.html
-- Get a free BLS API key at: https://data.bls.gov/registrationEngine/ (required for nowcast module)
-
-### 3. Run the Server
-
-```bash
-# From the project root:
-python -m dashboard.server
-```
-
-Or with uvicorn directly:
-
-```bash
-uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
-```
-
-Open **http://localhost:8000** in your browser.
-
-### 4. CLI Mode (no server)
-
-```bash
-python main.py
-```
+| To run... | Command |
+|---|---|
+| Dashboard (regimes, momentum, commodities) | `python -m dashboard.server`, then open http://localhost:8000 |
+| Regime pipeline (CLI) | `python main.py` |
+| Multi-desk firm backtest (all four desks, including the shelved FX desk) | `python -m desks.engine` |
+| Live trading dry run (no keys, no orders) | `python live/run_daily.py --dry-run` |
+| Live paper trading | `python live/run_daily.py` (see [live/README.md](live/README.md)) |
 
 ---
+
+# Regime Classifier: Detailed Documentation
 
 ## PyCharm Setup
 
@@ -338,6 +337,6 @@ All configuration lives in `config/settings.py`:
 
 ---
 
-## License
+## Disclaimer
 
-Internal use. Not financial advice.
+This project is for research and education. Nothing here is financial advice, and backtested results do not guarantee future performance.
