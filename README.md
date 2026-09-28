@@ -1,9 +1,9 @@
 # Market Intelligence Firm
 ### A multi-strategy quantitative investment platform: from macro research to live execution
 
-**Authors:** [Sid Sibal](https://github.com/sibalsid3) & [Krish Kanitkar](https://github.com/KrishnaK-1)
+**Authors:** [Sid Sibal](https://github.com/sibalsid3) & [Krishna Kanitkar](https://github.com/KrishnaK-1)
 
-This project is a small investment firm written in Python. It covers the whole workflow: reading the economy, generating trading signals, testing them honestly on past data, and trading them automatically through a broker.
+This project is an investment firm written in Python. It covers the whole workflow: reading the economy, generating trading signals, testing them honestly on past data, and trading them automatically through a broker.
 
 | Component | What it does | Where |
 |---|---|---|
@@ -28,13 +28,6 @@ This project is a small investment firm written in Python. It covers the whole w
 | 60/40 (SPY/AGG) | 0.72 | −33.2% | 12.1% |
 
 The firm matches the stock market's risk-adjusted return with about a quarter of the worst loss.
-
-**Honest caveats**
-- **Lower total return.** The firm runs at about 6% volatility, so its total return is far below SPY's. The advantage is steadier returns and smaller drawdowns, not more money in a bull market.
-- **Commodities depend on the regime.** The commodities desk did well from 2020 on but lost money through the 2011–2015 commodity slump.
-- **Some ideas didn't work.** An FX desk (Sharpe −0.19), naive shorting and a value desk were tested and deliberately left out. That code stays in the repo for transparency.
-- **Backtests aren't live results.** Tuning on the 2008–2026 window is finished to avoid overfitting. Paper trading is how the strategy gets tested going forward.
-- **Regime classifier:** 89.7% agreement with NBER recession history; its regime-based allocation backtest shows Sharpe 1.08 and max drawdown −15.9%.
 
 ---
 
